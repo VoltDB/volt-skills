@@ -1,5 +1,5 @@
 ---
-name: voltdb-client-helper
+name: voltdb-min-client-helper
 description: Helps create VoltDB client applications with connection code, DDL schemas, stored procedures, and integration tests. Use when user wants to create a VoltDB client, connect to VoltDB, create VoltDB schemas, or write VoltDB stored procedures.
 ---
 

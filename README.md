@@ -6,17 +6,17 @@ Custom [Claude Code skills](https://code.claude.com/docs/en/skills) for building
 
 | Skill | Description |
 |-------|-------------|
-| [voltdb-client-helper](skills/voltdb-client-helper/) | Creates VoltDB client applications with connection code, DDL schemas, stored procedures, and integration tests. |
-| [voltdb-partitioned-client](skills/voltdb-partitioned-client/) | Creates VoltDB client applications with optimized table partitioning, co-located procedures, and partition-aware CRUD/search operations. Extends `voltdb-client-helper`. |
+| [voltdb-min-client-helper](skills/voltdb-min-client-helper/) | Creates VoltDB client applications with connection code, DDL schemas, stored procedures, and integration tests. |
+| [voltdb-partitioned-client-helper](skills/voltdb-partitioned-client-helper/) | Creates VoltDB client applications with optimized table partitioning, co-located procedures, and partition-aware CRUD/search operations. Extends `voltdb-min-client-helper`. |
 
 ## Repository Structure
 
 ```
 volt-skills/
 ├── skills/
-│   ├── voltdb-client-helper/
+│   ├── voltdb-min-client-helper/
 │   │   └── SKILL.md
-│   └── voltdb-partitioned-client/
+│   └── voltdb-partitioned-client-helper/
 │       ├── SKILL.md
 │       └── references/
 │           └── PARTITIONING_FLOWCHART.md
@@ -57,15 +57,15 @@ Copy the desired skill directories into your project's `.claude/skills/` folder:
 git clone https://github.com/VoltDB/volt-skills.git
 
 # Copy a skill into your project
-cp -r volt-skills/skills/voltdb-client-helper your-project/.claude/skills/
-cp -r volt-skills/skills/voltdb-partitioned-client your-project/.claude/skills/
+cp -r volt-skills/skills/voltdb-min-client-helper your-project/.claude/skills/
+cp -r volt-skills/skills/voltdb-partitioned-client-helper your-project/.claude/skills/
 ```
 
 Once installed, invoke a skill by typing its name as a slash command in Claude Code:
 
 ```
-/voltdb-client-helper
-/voltdb-partitioned-client
+/voltdb-min-client-helper
+/voltdb-partitioned-client-helper
 ```
 
 ### Personal (all projects)
@@ -73,8 +73,8 @@ Once installed, invoke a skill by typing its name as a slash command in Claude C
 To make a skill available across all your projects, copy it to `~/.claude/skills/`:
 
 ```bash
-cp -r volt-skills/skills/voltdb-client-helper ~/.claude/skills/
-cp -r volt-skills/skills/voltdb-partitioned-client ~/.claude/skills/
+cp -r volt-skills/skills/voltdb-min-client-helper ~/.claude/skills/
+cp -r volt-skills/skills/voltdb-partitioned-client-helper ~/.claude/skills/
 ```
 
 ## Prerequisites
@@ -88,7 +88,7 @@ Both skills generate VoltDB client projects that require:
 
 ## Skill Details
 
-### voltdb-client-helper
+### voltdb-min-client-helper
 
 Guides you through creating a complete VoltDB client application with:
 - Maven project scaffolding (`pom.xml` with VoltDB dependencies)
@@ -99,9 +99,9 @@ Guides you through creating a complete VoltDB client application with:
 - Integration tests with `VoltDBCluster`
 - Build and verify instructions
 
-### voltdb-partitioned-client
+### voltdb-partitioned-client-helper
 
-Extends `voltdb-client-helper` with partition-aware capabilities:
+Extends `voltdb-min-client-helper` with partition-aware capabilities:
 - Interactive partitioning strategy analysis based on your data model
 - Partition column selection guidance (cardinality, query patterns, immutability)
 - Co-located table design for efficient single-partition joins
