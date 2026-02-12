@@ -1,6 +1,6 @@
 ---
-name: voltdb-partitioned-client
-description: Creates VoltDB client applications with custom table partitioning. Extends voltdb-client-helper with partition column specification, partitioned procedures, and partition-aware CRUD/search operations. Use when user wants partitioned VoltDB tables or single-partition procedures.
+name: voltdb-partitioned-client-helper
+description: Creates VoltDB client applications with custom table partitioning. Extends voltdb-min-client-helper with partition column specification, partitioned procedures, and partition-aware CRUD/search operations. Use when user wants partitioned VoltDB tables or single-partition procedures.
 ---
 
 # VoltDB Partitioned Client
@@ -80,7 +80,7 @@ Use `AskUserQuestion` with:
 
 ## Step 6: Generate Project
 
-Generate all files using templates below and from `voltdb-client-helper`.
+Generate all files using templates below and from `voltdb-min-client-helper`.
 
 **IMPORTANT: Always generate a README.md file using the README template below.**
 
@@ -220,7 +220,7 @@ END_OF_BATCH
 
 VoltDB routes procedure calls based on the FIRST parameter value. If the partition key is not first, inserts will fail with "Mispartitioned tuple" errors.
 
-Use CRUD templates from `voltdb-client-helper`, plus:
+Use CRUD templates from `voltdb-min-client-helper`, plus:
 
 **Insert/Upsert (Single-Partition) - Partition key FIRST:**
 ```java
