@@ -106,7 +106,7 @@ Ask the user:
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <voltdb.version>14.3.1</voltdb.version>
-        <volt-testcontainer.version>1.6.0</volt-testcontainer.version>
+        <volt-testcontainer.version>1.6.0-SNAPSHOT</volt-testcontainer.version>
     </properties>
 
     <dependencies>
@@ -219,6 +219,10 @@ Ask the user:
 ### Step 4: Generate DDL Schema
 
 **IMPORTANT:** Schema file is at `schema/ddl.sql` (NOT in resources)
+
+**IMPORTANT:** In VoltDB DDL, `DEFAULT` must come before `NOT NULL`:
+- CORRECT: `status varchar(32) DEFAULT 'ACTIVE' NOT NULL`
+- WRONG: `status varchar(32) NOT NULL DEFAULT 'ACTIVE'` (causes DDL error)
 
 ```sql
 -- VoltDB DDL Schema
@@ -390,7 +394,7 @@ public class IntegrationTestBase {
 ```java
 package <package>;
 
-import org.voltdb.client.Client;
+import org.voltdb.client.Client2;
 import org.voltdb.client.ClientResponse;
 
 import java.util.ArrayList;
@@ -403,7 +407,7 @@ import java.util.Random;
  */
 public class TestDataGenerator {
 
-    private final Client client;
+    private final Client2 client;
     private final Random random = new Random();
 
     // Sample values for generating test data
@@ -420,7 +424,7 @@ public class TestDataGenerator {
         "Real-Time Analytics"
     };
 
-    public TestDataGenerator(Client client) {
+    public TestDataGenerator(Client2 client) {
         this.client = client;
     }
 
@@ -440,7 +444,7 @@ public class TestDataGenerator {
             int key = i;
             String value = SAMPLE_VALUES[random.nextInt(SAMPLE_VALUES.length)] + " #" + i;
 
-            ClientResponse response = client.callProcedure("Put", key, value);
+            ClientResponse response = client.callProcedureSync("Put", key, value);
             if (response.getStatus() == ClientResponse.SUCCESS) {
                 insertedKeys.add(key);
                 System.out.printf("Inserted: key=%d, value='%s'%n", key, value);
@@ -468,7 +472,7 @@ public class TestDataGenerator {
 
         int successCount = 0;
         for (Integer key : keys) {
-            ClientResponse response = client.callProcedure("Get", key);
+            ClientResponse response = client.callProcedureSync("Get", key);
             if (response.getStatus() == ClientResponse.SUCCESS) {
                 org.voltdb.VoltTable table = response.getResults()[0];
                 if (table.advanceRow()) {
@@ -497,7 +501,7 @@ public class TestDataGenerator {
 package <package>;
 
 import org.junit.jupiter.api.Test;
-import org.voltdb.client.Client;
+import org.voltdb.client.Client2;
 import org.voltdb.client.ClientResponse;
 import org.voltdb.VoltTable;
 import org.voltdbtest.testcontainer.VoltDBCluster;
@@ -520,7 +524,7 @@ public class KeyValueIT extends IntegrationTestBase {
         );
         try {
             configureTestContainer(db);
-            Client client = db.getClient();
+            Client2 client = db.getClient2();
 
             // Use TestDataGenerator to insert test data
             TestDataGenerator generator = new TestDataGenerator(client);
@@ -535,7 +539,7 @@ public class KeyValueIT extends IntegrationTestBase {
 
             // Verify individual record retrieval
             int testKey = insertedKeys.get(0);
-            ClientResponse response = client.callProcedure("Get", testKey);
+            ClientResponse response = client.callProcedureSync("Get", testKey);
             assertEquals(ClientResponse.SUCCESS, response.getStatus());
 
             VoltTable table = response.getResults()[0];

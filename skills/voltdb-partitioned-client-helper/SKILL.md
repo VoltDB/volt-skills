@@ -274,10 +274,10 @@ public class Get[Table1][Table2] extends VoltProcedure {
 
 ```java
 // CORRECT: shelterId (partition key) is FIRST
-client.callProcedure("UpsertPet", shelterId, petId, name, type, status, ...);
+client.callProcedureSync("UpsertPet", shelterId, petId, name, type, status, ...);
 
 // WRONG: petId first will cause "Mispartitioned tuple" error!
-client.callProcedure("UpsertPet", petId, name, type, shelterId, status, ...);
+client.callProcedureSync("UpsertPet", petId, name, type, shelterId, status, ...);
 ```
 
 ---
@@ -298,6 +298,11 @@ client.callProcedure("UpsertPet", petId, name, type, shelterId, status, ...);
 - Tables partitioned on same column VALUES are co-located (column names can differ)
 - `CUSTOMER.ID` can join with `ORDER.CUSTOMER_ID` if values match
 - Co-located tables can be efficiently joined in single-partition procedures
+
+### DDL Syntax Rules
+- **DEFAULT before NOT NULL:** VoltDB requires `DEFAULT` to appear before `NOT NULL` in column definitions
+  - CORRECT: `status varchar(32) DEFAULT 'ACTIVE' NOT NULL`
+  - WRONG: `status varchar(32) NOT NULL DEFAULT 'ACTIVE'` (DDL error: "unexpected token: DEFAULT")
 
 ### Critical Rules (Violations = Wrong Results or Errors)
 
