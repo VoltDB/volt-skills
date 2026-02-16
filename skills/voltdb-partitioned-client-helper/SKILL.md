@@ -1,13 +1,18 @@
 ---
 name: voltdb-partitioned-client-helper
-description: Creates VoltDB client applications with custom table partitioning. Extends voltdb-min-client-helper with partition column specification, partitioned procedures, and partition-aware CRUD/search operations. Use when user wants partitioned VoltDB tables or single-partition procedures.
+description: Creates complete VoltDB client applications with optimized table partitioning, end-to-end. Orchestrates project scaffolding, partitioning analysis, DDL/procedure generation, and integration test creation. Use when user wants a full partitioned VoltDB client application.
 ---
 
-# VoltDB Partitioned Client
+# VoltDB Partitioned Client Helper
 
-This skill creates VoltDB client applications with **optimized partitioning strategies**.
+This skill provides a complete, guided experience for creating a VoltDB client application with optimized partitioning. It orchestrates three other skills to deliver an end-to-end solution.
 
-## How to Use This Skill
+## How It Works
+
+This skill coordinates:
+1. **`voltdb-min-client-helper`** — Maven project scaffolding and `pom.xml`
+2. **`voltdb-proc-helper`** — Partitioning analysis, DDL schema, and stored procedures
+3. **`voltdb-it-tests-helper`** — Integration tests with testcontainer and realistic data
 
 **Use the `AskUserQuestion` tool for each question. This provides clickable options for the user.**
 
@@ -53,17 +58,13 @@ If user selects "Describe custom tables", ask them to describe their tables in a
 
 ---
 
-## Step 4: Analyze and Present Partitioning Strategy
+## Step 4: Analyze Partitioning and Generate DDL/Procedures
 
-Based on user's data model, analyze using the Reference Rules (at end of this document).
-
-Use `AskUserQuestion` to confirm:
-- **question:** "Does this partitioning strategy work for you? [show strategy summary]"
-- **header:** "Confirm strategy"
-- **options:**
-  - `Yes, proceed` (Recommended)
-  - `Modify strategy` - I want to change something
-  - `Explain more` - Tell me more about the trade-offs
+Follow the instructions in **`voltdb-proc-helper`**:
+1. Analyze the data model and recommend a partitioning strategy
+2. Present the strategy for user confirmation
+3. Generate `schema/ddl.sql` with partition declarations
+4. Generate stored procedures under `src/main/java/[package]/procedures/`
 
 ---
 
@@ -78,27 +79,28 @@ Use `AskUserQuestion` with:
 
 ---
 
-## Step 6: Generate Project
+## Step 6: Generate Project Scaffolding
 
-Generate all files using templates below and from `voltdb-min-client-helper`.
-
-**IMPORTANT: Always generate a README.md file using the README template below.**
-
-After generating, use `AskUserQuestion`:
-- **question:** "Project created. Would you like me to build and test it now?"
-- **header:** "Build"
-- **options:**
-  - `Yes, build and test` (Recommended)
-  - `No, I'll build later`
-  - `Show build commands` - Just show me the commands
+Follow the instructions in **`voltdb-min-client-helper`**:
+1. Create the project directory structure
+2. Generate `pom.xml` with VoltDB dependencies
+3. Place the DDL and procedures generated in Step 4
 
 ---
 
-## Templates
+## Step 7: Generate Integration Tests
 
-### README.md Template (Required)
+Follow the instructions in **`voltdb-it-tests-helper`**:
+1. Generate `IntegrationTestBase.java`
+2. Generate `TestDataGenerator.java` with realistic data for the schema
+3. Generate `*IT.java` integration test class verifying all procedures
+4. Generate `test.properties`
 
-Always create a README.md file in the project root:
+---
+
+## Step 8: Generate README
+
+**IMPORTANT: Always generate a README.md file in the project root using this template:**
 
 ```markdown
 # [PROJECT_NAME] - VoltDB Partitioned Client
@@ -173,163 +175,17 @@ mvn verify
 
 ---
 
-### DDL Template with Partitioning
+## Step 9: Offer to Build and Test
 
-```sql
-file -inlinebatch END_OF_BATCH
+Use `AskUserQuestion`:
+- **question:** "Project created. Would you like me to build and test it now?"
+- **header:** "Build"
+- **options:**
+  - `Yes, build and test` (Recommended)
+  - `No, I'll build later`
+  - `Show build commands` - Just show me the commands
 
--- Primary table
-CREATE TABLE [TABLE_NAME] (
-    [PARTITION_COLUMN] bigint NOT NULL,
-    ...columns...
-    PRIMARY KEY ([PARTITION_COLUMN], ...)
-);
-PARTITION TABLE [TABLE_NAME] ON COLUMN [PARTITION_COLUMN];
-
--- Co-located table (same partition key)
-CREATE TABLE [RELATED_TABLE] (
-    [ID_COLUMN] bigint NOT NULL,
-    [PARTITION_COLUMN] bigint NOT NULL,
-    ...columns...
-    PRIMARY KEY ([ID_COLUMN], [PARTITION_COLUMN])
-);
-PARTITION TABLE [RELATED_TABLE] ON COLUMN [PARTITION_COLUMN];
-
--- Lookup table (for cross-partition queries)
-CREATE TABLE [TABLE1]_[TABLE2]_LOOKUP (
-    [PARTITION_COLUMN] bigint NOT NULL,
-    [OTHER_ID] bigint NOT NULL,
-    [DENORMALIZED_FIELDS]...,
-    PRIMARY KEY ([PARTITION_COLUMN], [OTHER_ID], ...)
-);
-PARTITION TABLE [TABLE1]_[TABLE2]_LOOKUP ON COLUMN [PARTITION_COLUMN];
-
--- Single-partition procedures
-CREATE PROCEDURE PARTITION ON TABLE [TABLE] COLUMN [PARTITION_COLUMN]
-    FROM CLASS [package].procedures.[ProcedureName];
-
--- Multi-partition procedures
-CREATE PROCEDURE FROM CLASS [package].procedures.[SearchProcedure];
-
-END_OF_BATCH
+If user selects "Yes", run:
+```bash
+cd <project-name> && mvn clean package -DskipTests && mvn verify
 ```
-
-### Procedure Templates
-
-**CRITICAL: Partition key MUST be the FIRST parameter in all single-partition procedures!**
-
-VoltDB routes procedure calls based on the FIRST parameter value. If the partition key is not first, inserts will fail with "Mispartitioned tuple" errors.
-
-Use CRUD templates from `voltdb-min-client-helper`, plus:
-
-**Insert/Upsert (Single-Partition) - Partition key FIRST:**
-```java
-public class Upsert[Table] extends VoltProcedure {
-    public final SQLStmt upsert = new SQLStmt(
-        "UPSERT INTO [TABLE] ([PARTITION_COL], [OTHER_ID], ...) VALUES (?, ?, ...);"
-    );
-
-    // CRITICAL: partitionKey MUST be the FIRST parameter!
-    public VoltTable[] run(long partitionKey, long otherId, String name, ...) {
-        voltQueueSQL(upsert, partitionKey, otherId, name, ...);
-        return voltExecuteSQL();
-    }
-}
-```
-
-**Co-located Access (Single-Partition):**
-```java
-public class Get[Table]With[Related] extends VoltProcedure {
-    public final SQLStmt getMain = new SQLStmt(
-        "SELECT * FROM [TABLE] WHERE [PARTITION_COL] = ?;");
-    public final SQLStmt getRelated = new SQLStmt(
-        "SELECT * FROM [RELATED] WHERE [PARTITION_COL] = ?;");
-
-    // CRITICAL: partitionKey MUST be the FIRST parameter!
-    public VoltTable[] run(long partitionKey) {
-        voltQueueSQL(getMain, partitionKey);
-        voltQueueSQL(getRelated, partitionKey);
-        return voltExecuteSQL();
-    }
-}
-```
-
-**Lookup Table Access (Single-Partition):**
-```java
-public class Get[Table1][Table2] extends VoltProcedure {
-    public final SQLStmt getLookup = new SQLStmt(
-        "SELECT * FROM [TABLE1]_[TABLE2]_LOOKUP WHERE [PARTITION_COL] = ?;");
-
-    // CRITICAL: partitionKey MUST be the FIRST parameter!
-    public VoltTable[] run(long partitionKey) {
-        voltQueueSQL(getLookup, partitionKey);
-        return voltExecuteSQL();
-    }
-}
-```
-
-### Test Data Generator Template
-
-**CRITICAL: When calling procedures, pass partition key as FIRST argument!**
-
-```java
-// CORRECT: shelterId (partition key) is FIRST
-client.callProcedureSync("UpsertPet", shelterId, petId, name, type, status, ...);
-
-// WRONG: petId first will cause "Mispartitioned tuple" error!
-client.callProcedureSync("UpsertPet", petId, name, type, shelterId, status, ...);
-```
-
----
-
-## Reference: Partitioning Rules (For Claude's Internal Use)
-
-**Use these rules to analyze user's data model and make smart suggestions. Do NOT explain all rules to user - just apply them.**
-
-### Choosing Partition Column
-- **Good:** `*_ID` columns (CUSTOMER_ID, ORDER_ID, USER_ID) - high cardinality
-- **Bad:** STATUS, TYPE, IS_ACTIVE, COUNTRY_CODE - low cardinality causes hot spots
-- **Rule:** Should have 10x more distinct values than cluster nodes
-- **Rule:** Should appear in WHERE clause of most queries
-- **Rule:** Should be immutable (rarely changes)
-- **Rule:** VoltDB only supports SINGLE column partition keys (no composite keys)
-
-### Co-location Rules
-- Tables partitioned on same column VALUES are co-located (column names can differ)
-- `CUSTOMER.ID` can join with `ORDER.CUSTOMER_ID` if values match
-- Co-located tables can be efficiently joined in single-partition procedures
-
-### DDL Syntax Rules
-- **DEFAULT before NOT NULL:** VoltDB requires `DEFAULT` to appear before `NOT NULL` in column definitions
-  - CORRECT: `status varchar(32) DEFAULT 'ACTIVE' NOT NULL`
-  - WRONG: `status varchar(32) NOT NULL DEFAULT 'ACTIVE'` (DDL error: "unexpected token: DEFAULT")
-
-### Critical Rules (Violations = Wrong Results or Errors)
-
-**MOST IMPORTANT - Partition Key Parameter Order:**
-- The partition key MUST be the FIRST parameter in single-partition procedures
-- VoltDB routes calls based on the FIRST parameter value
-- If partition key is not first: INSERT/UPSERT fails with "Mispartitioned tuple" error
-- If partition key is not first: SELECT returns wrong/incomplete data (silent failure!)
-
-**Other Critical Rules:**
-- Procedure can ONLY partition on an input parameter
-- Partitioned table joins ONLY work correctly on partition column
-- Single-partition procedure accessing different partition key returns WRONG data (only sees local partition!)
-- VoltDB rejects inserts to wrong partition
-- Replicated tables (no PARTITION statement) accessible from any partition
-
-### When to Suggest Lookup Tables
-- Two tables have different partition columns (CUSTOMER_ID vs PRODUCT_ID)
-- User needs to query "all X for Y" across partition domains
-- Denormalize frequently-needed fields
-- Trade-off: Slower writes, faster reads
-
-### Procedure Type Selection
-| Access Pattern | Procedure Type | Performance |
-|----------------|----------------|-------------|
-| Query by partition key | Single-partition | Fast |
-| Join co-located tables | Single-partition | Fast |
-| Query via lookup table | Single-partition | Fast |
-| Search without partition key | Multi-partition | Slower |
-| Cross-partition writes | Multi-partition | Slower |
