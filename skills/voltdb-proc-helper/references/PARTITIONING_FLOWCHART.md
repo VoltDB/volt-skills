@@ -274,7 +274,7 @@ A visual guide for making partitioning decisions in VoltDB.
 │                           └── Partition key FIRST!              │
 │                                                                 │
 │  Client call:                                                   │
-│    client.callProcedure("UpsertPet", shelterId, petId, ...);    │
+│    client.callProcedureSync("UpsertPet", shelterId, petId, ...);    │
 │                                      ▲                          │
 │                                      └── Partition key FIRST!   │
 │                                                                 │
@@ -310,11 +310,11 @@ A visual guide for making partitioning decisions in VoltDB.
 │                                                                 │
 │  ✓ CORRECT:                                                     │
 │    run(long shelterId, long petId, String name, ...)            │
-│    callProcedure("UpsertPet", shelterId, petId, name, ...)      │
+│    callProcedureSync("UpsertPet", shelterId, petId, name, ...)      │
 │                                                                 │
 │  ✗ WRONG (causes "Mispartitioned tuple" error!):                │
 │    run(long petId, String name, long shelterId, ...)            │
-│    callProcedure("UpsertPet", petId, name, shelterId, ...)      │
+│    callProcedureSync("UpsertPet", petId, name, shelterId, ...)      │
 │                                                                 │
 │  Why? VoltDB uses first param (petId=4) to route to partition,  │
 │  but data has shelterId=1 which belongs to different partition. │
@@ -419,9 +419,9 @@ Decision Flow:
 
      ✓ CORRECT - UpsertPet with shelterId FIRST:
        public VoltTable[] run(long shelterId, long petId, String name, ...)
-       client.callProcedure("UpsertPet", shelterId, petId, name, ...)
+       client.callProcedureSync("UpsertPet", shelterId, petId, name, ...)
 
      ✗ WRONG - petId first causes "Mispartitioned tuple" error:
        public VoltTable[] run(long petId, String name, long shelterId, ...)
-       client.callProcedure("UpsertPet", petId, name, shelterId, ...)
+       client.callProcedureSync("UpsertPet", petId, name, shelterId, ...)
 ```
