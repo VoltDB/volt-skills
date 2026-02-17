@@ -96,7 +96,7 @@ Ask the user:
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <voltdb.version>14.3.1</voltdb.version>
-        <volt-testcontainer.version>1.6.0-SNAPSHOT</volt-testcontainer.version>
+        <volt-testcontainer.version>1.7.0</volt-testcontainer.version>
     </properties>
 
     <dependencies>
