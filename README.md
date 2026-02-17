@@ -142,7 +142,8 @@ Generates integration tests for VoltDB client applications:
 
 ### voltdb-partitioned-client-helper
 
-End-to-end orchestrator for complete partitioned VoltDB client applications:
+Generates a complete partitioned VoltDB client applications via guided questions.
+Acts as an end-to-end orchestrator that provides:
 - Interactive guided workflow with clickable options
 - Coordinates all three other skills in sequence
 - Generates README with partitioning strategy documentation
