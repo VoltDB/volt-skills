@@ -120,10 +120,40 @@ streaming:
           voltClientResource:
             servers: ${ env:voltdb-master-server }
 ```
+## Node counts
+Always start from `1` node per release cluster to speed up the deployment.
+Let the user decide later to increase the node count.
+
+## Note resources
+Always set same values for `resources.requests` and `resources.limits`.
+For VoltDB, it is recommended to start with `cpu` number bigger or equal to `sitesperhost`. Start with 3.
+For VoltDB, it is recommended to start with `memory` number to at least `10Gi`.
+For VoltDB, it is recommended to start with `cpu` number bigger or equal to `parallelism`, for a start it can be set to 3.
+For VoltSP, it is recommended to start with `memory` number between `2Gi` and `5Gi`.
+
+## VoltDB Scaling Behavior Reference
+1. Always Use Odd Node Counts (1, 3, 5, 7)
+Prevents split-brain during network partitions:
+- Even nodes (4): can split 2-2 → no majority → data corruption risk
+- Odd nodes (5): can split 3-2 → group of 3 has majority → safe
+
+2. kfactor Requirements
+- For testing the deployment scribe kfactor=0 is enough.
+- For production deployments consider replication kfactor=1 or higher.
+- Enables data replication
+- Scales 2 nodes at a time (K+1 rule): 3→5→7
+- **CRITICAL**: kfactor is set at cluster creation. Must delete PVCs to change it.
+
+| kfactor | Min Nodes | Scales By | Path | Notes                                              |
+|---------|-----------|-----------|------|----------------------------------------------------|
+| 0 | 1 | 1 | 1→2→3 | No replication, data loss risk, enough for testing |
+| 1 | 3 | 2 | 3→5→7 | **Recommended**                                    |
+| 2 | 3 | 3 | 3→6→9 | Higher redundancy                                  |
+
 ## Versions
 Verify the version of `voltdb` or `volt-streams` charts with a user. Also verify the version of the images.
 
-## resources managed by voltdb/voltdb chart
+## Resources managed by voltdb/voltdb chart
 Check with the helm chart which resources are managed by the chart. The most common resources are:
 - PVCs
 - Services - client, topics, vmc
@@ -132,7 +162,7 @@ Check with the helm chart which resources are managed by the chart. The most com
 - ConfigMap - schema config map, deployment config map
 - Secret - license file
 - 
-## resources managed by voltdb/volt-streams chart
+## Resources managed by voltdb/volt-streams chart
 Check with the helm chart which resources are managed by the chart. The most common resources are:
 - PVCs
 - Deployment of nodes
