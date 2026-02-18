@@ -1,7 +1,9 @@
-# This section describes the Helm chart values for VoltDB.
-The Helm charts for Volt are releases into `https://voltdb-kubernetes-charts.storage.googleapis.com`.
+# This section describes the Helm chart values for Volt.
+The Helm charts for Volt are released into `https://voltdb-kubernetes-charts.storage.googleapis.com`.
 VoltDB chart is saved under `voltdb/voltdb` and VoltSP chart is saved under `voltdb/volt-streams`.
 Use `helm search repo voltdb` to find the latest version.
+
+`voltdb` contains other charts, but this document focuses on `voltdb/voltdb` and `voltdb/volt-streams`.
 
 ## values.yaml
 Helm is a source of values for values.yaml. Use `helm show values CHART` to see the latest values.
