@@ -1,0 +1,5 @@
+interface:
+  display_name: "VoltSP"
+  short_description: "VoltSP pipelines, plugins, deploy & test"
+  default_prompt: "Use $voltsp to help me build, run, and test a VoltSP pipeline or plugin."
+
