@@ -154,6 +154,26 @@ Note that the `voltsp-products` depends on the `voltdb-products` release.
 Note that the `podEnv` section contains environment variables that are used by the VoltSP configuration in helm's values.yaml file.
 See `references/volt-helm-resource.md` for information how to configure helm values.
 
+#### Optional Observability release
+Propose to a user whether to include an observability release.
+As the cluster is created from scratch, the assumption is that monitoring services are not installed.
+Volt uses Prometheus and Grafana for monitoring. See `references/volt-monitoring.md` for information how to enable monitoring.
+Prometheus creates special kubernetes resources to correctly target and scrape metrics from pods.
+By default, Prometheus is looking for pods in the same namespace.
+Example of the standalone prometheus and grafana releases:
+```yaml
+releases:
+  - name: prometheus
+    chart: prometheus-community/prometheus-operator-crds
+    namespace: {{ .StateValues.namespace | quote }}
+
+  - name: monitoring
+    chart: voltdb/management-console
+    namespace: {{ .StateValues.namespace | quote }}
+```
+Mind that prometheus and grafana require additional cpu and memory resources.
+Monitoring has to be released first.
+
 ### Step 4: Terraform resources
 Terraform should define a frame for deployment. 
 - which cloud provider to use

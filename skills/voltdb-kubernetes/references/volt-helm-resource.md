@@ -13,7 +13,7 @@ Example:
 **VoltSP values.yaml**:
 ```yaml
 global:
-  voltdbVersion: "15.1.0"
+  voltdbVersion: "<version>"
 
 cluster:
   clusterSpec:
@@ -42,58 +42,19 @@ cluster:
     allowRestartDuringUpdate: true
 
   config:
-    #schemas:
-    #  products: |
-    #    CREATE TABLE products
-    #    EXPORT TO TOPIC cdc ON INSERT, UPDATE, DELETE
-    #    WITH KEY (order_id)
-    #    (
-    #        order_id BIGINT NOT NULL,
-    #        inserted_at TIMESTAMP NOT NULL,
-    #        amount BIGINT NOT NULL
-    #    );
-    #
-    #   PARTITION TABLE products ON COLUMN order_id;
-    #
-    #   CREATE PROCEDURE PRODUCTS_INSERT
-    #   AS INSERT INTO PRODUCTS VALUES (?, NOW(), ?);
-
     deployment:
       cluster:
         kfactor: 0
         sitesperhost: 3
 
-      # Topics configuration for CDC
-      #topics:
-      #  enabled: true
-      #  topic:
-      #    - name: cdc
-      #      format: json
-      #      retention: 1dy
-      #      properties:
-      #        "consumer.skip.internals": false
-
       commandlog:
         enabled: false
-
       snapshot:
         enabled: false
-
-      security:
-        enabled: false
-
-      ssl:
-        enabled: false
-
-  # if topics are enabled, configure kafka erviceSpec to expose them
-  #serviceSpec:
-  #  type: "NodePort"
-  #  kafka:
-  #    type: LoadBalancer
-  #    annotations:
-  #      volt: "kafka"
-  #    publicIPFromService: true
 ```
+### VoltDb configuration highlights
+#### Exporters
+- Topics: For more details on topics configuration see `references/volt-helm-topics.md`
 
 **VoltSP values.yaml**:
 ```yaml
@@ -126,7 +87,7 @@ streaming:
 Always start from `1` node per release cluster to speed up the deployment.
 Let the user decide later to increase the node count.
 
-## Note resources
+## Node resources
 Always set same values for `resources.requests` and `resources.limits`.
 For VoltDB, it is recommended to start with `cpu` number bigger or equal to `sitesperhost`. Start with 3.
 For VoltDB, it is recommended to start with `memory` number to at least `10Gi`.
