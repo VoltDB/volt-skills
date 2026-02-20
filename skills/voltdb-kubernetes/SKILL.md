@@ -184,6 +184,7 @@ Terraform should define a frame for deployment.
 - what is region and zone for deployment
 - how nodes are visible to each other, should there be a specific security rules
 - how nodes are accessible from the outside
+- what is the name of the docker pull secret (default `dockerio-registry`) – user should provide additional email, user, password – those should be saved in terraform.tfvars file
 Answer to those questions will drive values in variables.tf file.
 
 Terraform resources are created in the root project directory under 'terraform' directory.
@@ -205,6 +206,37 @@ The terraform directory should contain the
 - namespace.tf file with namespace configuration, the global secrets, etc.
 - kubectl.tf file with kubectl configuration for created project and cluster 
 - release.tf file with helmfile execution, helmfile should always be executed by terraform with specific environment variables. The `helmfile apply` must be executed, and it will figure out whether the state has changed or not. This file should include any additional post-create actions once helmfile has finished.
+
+#### Pull Secret
+In namespace.tf create a secret, with a default name `dockerio-registry`. Make sure variables containe placeholders for email, user and password, that can be overridden in terraform.tfvars file.
+User can choose different name for the secret. The secret name should be added to a output.tf file.
+The downstream helmfile config should use the same secret name.
+Example:
+```terraform
+resource "kubernetes_secret" "dockerio_registry" {
+  metadata {
+    name      = "dockerio-registry"
+    namespace = kubernetes_namespace.voltdb.metadata[0].name
+  }
+
+  type = "kubernetes.io/dockerconfigjson"
+
+  data = {
+    ".dockerconfigjson" = jsonencode({
+      auths = {
+        "https://index.docker.io/v1/" = {
+          username = var.docker_username
+          password = var.docker_password
+          email    = var.docker_email
+          auth     = base64encode("${var.docker_username}:${var.docker_password}")
+        }
+      }
+    })
+  }
+
+  depends_on = [<other resource>]
+}
+```
 
 ### Step 5: Verify the deployment
 Verify that the deployment is working as expected.
