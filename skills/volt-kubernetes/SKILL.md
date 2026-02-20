@@ -1,15 +1,10 @@
 ---
-name: voltdb-kubernetes
-description: Helps deploying VoltDB cluster on Kubernetes. Use when user wants to create scripts creating VoltDB clusters on Kubernetes. Use when user asks to create terraform, helmfile or helm scripts.
+name: volt-kubernetes
+description: Helps deploying VoltDB cluster on Kubernetes. Use when user wants to create scripts creating clusters on Kubernetes with Volt's releases. Use when user asks to create terraform, helmfile or helm scripts. Use when user want to create configuration as code.
 ---
-license: Apache License 2.0
-```yaml
-metadata:
-    author: Volt Active Data
-```
 
 # Helper for deploying VoltDB's cluster on Kubernetes
-This skill focuses on creating cluster configuration as code using terraform, helmfile or helm.
+This skill focuses on creating cluster configuration as code using terraform, helmfile and helm.
 Helm tool is used to configure kubernetes resources for a VoltDB cluster, called a release.
 Helmfile tool is used to manage multiple helm releases.
 Terraform tool is used to create and manage cloud resources and high-level kubernetes resources.
@@ -40,41 +35,62 @@ Before generating deployment scripts, check that:
 - **Maven 3.6+** is installed
 - Valid **VoltDB Enterprise license** file is available
 
+kubectl must be configured to connect to a cloud provider.
+
 ## Instructions
 ### Step 1: Understand the application details
 Before any code is generated, verify with a user that there is a running integration test using testcontainers.
-Such a test validates all required VoltDB components — deployment file, schema file, license, optional java code that can be packaged into a jar file.
+Such a test validates all required VoltDB components — helm values file, schema file, license, optional java code that can be packaged into a jar file.
+Such a test validates all required VoltSP components — helm values file, license, optional java code that can be packaged into a jar file.
 Such a test can be easily translated into a helm configuration.
 If a user cannot point to such a test, please recommend creating one and quit.
-If a user selects a testcontainer test, please run it locally and verify that it passes.
+**If a user selects a testcontainer test, please run it locally and verify that it passes.**
 
-### Step 2: Helm values
+### Step 2: Script directory layout
+given the application location, create a directory structure at the root of the application:
+```text
+k8s/
+  helmfile/
+    stateValues/
+      base.yaml
+    values/
+      release-1.yaml
+    helmfile.yaml.gotmpl
+    .gitignore
+    README.md
+  terraform/
+    .gitignore
+    README.md
+```
+
+### Step 3: Helm values
 Look at the testcontainers test and identify all Volt services that are deployed and their resources like schema, deployment file, jar files, configuration, etc.
 For each identified cluster deployment, create a yaml file with the same name as the cluster.
-Those yaml files must be created in root project directory under 'helmfile/values' directory.
+Those yaml files must be created in root project directory under 'k8s/helmfile/values' directory.
 If the directory is missing, create it.
 
-See `references/volt-helm-resource.md` for additional details.
+See `references/volt-helm-release.md` for additional details.
 
-### Step 3: Helmfile releases
+### Step 4: Helmfile releases
 Helmfile require a strict directory structure.
-Looking from the root of the project, it should follow this pattern:
+Looking from the `helmfile` root, it should follow this pattern:
 ```text
 helmfile/
   stateValues/
-    - base.yaml
-    - env.yaml.gotmpl
-    - override.yaml.local
-    - override.yaml.local.template
-    - .gitignore
+  - base.yaml
+  - env.yaml.gotmpl
+  - override.yaml.local
+  - override.yaml.local.template
+  - .gitignore
+  values/
   helmfile.yaml.gotmpl
   README.md
 ```
-The README.md file with instructions on how to run helmfile. Helmfile can be run from terraform which should pass environment variables to helmfile. If helmfile is run from shell `terraform output name` commnad should be used to get values for required environment variables.
+The README.md file with instructions on how to run helmfile. Helmfile can be run from terraform which should pass environment variables to helmfile. If helmfile is run from shell `terraform output name` commnad is used to get values for required environment variables.
 The `helmfile.yaml.gotmpl` file contains helmfile release configuration.
 The `stateValues` directory contains *.yaml or *.yaml.gotmpl files with helmfile values.
 The base.yaml file contains the default values for all releases.
-The env.yaml.gotmpl file contains values that are specific to the environment. Extract env value using `{{ requiredEnv "ENV_NAME" }}`. The helmfile will use keys defined in this file rather extracting them from env.
+The env.yaml.gotmpl file contains values that are specific to the environment. Extract env value using `{{ requiredEnv "ENV_NAME" }}`. The helmfile will use keys defined in this file rather than extracting them from env.
 The override.yaml.local file contains values that are specific to the local environment. This one should not be checked in as it can contain sensitive data. Make sure adding it to .gitignore.
 The override.yaml.local.template file contains a template for the override.yaml.local file, with blank values.
 
@@ -91,12 +107,12 @@ environments:
 ```
 User can later add more environments, but this is a good starting point.
 
-#### Pull Secret
+#### Docker Pull Secret
 In order to pull images from private repositories, kubernetes requires a secret with credentials.
 The helmfile could release such a secret, but it's better to create it using terraform.
 
 #### Helm Repository
-See `references/volt-helm-resource.md` for information how to configure helm repository.
+See `references/volt-helm-release.md` for information how to configure helm repository.
 Verify whether additional repositories are required and include them in the helmfile.yaml.gotmpl file.
 Example:
 ```yaml
@@ -133,6 +149,7 @@ releases:
   # VoltSP Products
   - name: voltsp-products
     chart: voltdb/volt-streams
+    version: "{{ .StateValues.voltsp.chart.version }}"
     namespace: {{ .StateValues.namespace | quote }}
     needs:
       - voltdb/voltdb-products
@@ -152,10 +169,11 @@ releases:
 ```
 Note that the `voltsp-products` depends on the `voltdb-products` release.
 Note that the `podEnv` section contains environment variables that are used by the VoltSP configuration in helm's values.yaml file.
-See `references/volt-helm-resource.md` for information how to configure helm values.
+See `references/volt-helm-release.md` for information how to configure helm values.
 
 #### Optional Observability release
-Propose to a user whether to include an observability release.
+**Propose to a user whether to include an observability release.**
+
 As the cluster is created from scratch, the assumption is that monitoring services are not installed.
 Volt uses Prometheus and Grafana for monitoring. See `references/volt-monitoring.md` for information how to enable monitoring.
 Prometheus creates special kubernetes resources to correctly target and scrape metrics from pods.
@@ -174,8 +192,11 @@ releases:
 Mind that prometheus and grafana require additional cpu and memory resources.
 Monitoring has to be released first.
 
-### Step 4: Terraform resources
+### Step 5: Terraform resources
 Terraform should define a frame for deployment. 
+
+#### Questions to ask
+**Ask a user the following questions:**
 - which cloud provider to use
 - what is the project name
 - what is the project namespace
@@ -187,7 +208,7 @@ Terraform should define a frame for deployment.
 - what is the name of the docker pull secret (default `dockerio-registry`) – user should provide additional email, user, password – those should be saved in terraform.tfvars file
 Answer to those questions will drive values in variables.tf file.
 
-Terraform resources are created in the root project directory under 'terraform' directory.
+Terraform resources are created in the root project directory under 'k8s/terraform' directory.
 The terraform directory should contain the 
 - .gitignore file, ignoring at least the following files:
   ```text
@@ -207,7 +228,7 @@ The terraform directory should contain the
 - kubectl.tf file with kubectl configuration for created project and cluster 
 - release.tf file with helmfile execution, helmfile should always be executed by terraform with specific environment variables. The `helmfile apply` must be executed, and it will figure out whether the state has changed or not. This file should include any additional post-create actions once helmfile has finished.
 
-#### Pull Secret
+#### Docker Pull Secret
 In namespace.tf create a secret, with a default name `dockerio-registry`. Make sure variables containe placeholders for email, user and password, that can be overridden in terraform.tfvars file.
 User can choose different name for the secret. The secret name should be added to a output.tf file.
 The downstream helmfile config should use the same secret name.
@@ -234,15 +255,16 @@ resource "kubernetes_secret" "dockerio_registry" {
     })
   }
 
-  depends_on = [<other resource>]
+  depends_on = [<other_resource_name>]
 }
 ```
 
-### Step 5: Verify the deployment
+### Step 6: Verify the deployment
+Run `terraform apply` command.
 Verify that the deployment is working as expected.
 Wait for specific pod to be ready - `kubectl wait --for=condition=ready pod -l release=<release_name> -n ${namespace} --timeout=300s;` or call `kubectl get pods -n <namespace>` and check that all pods are running without any errors. 
 
 #### Troubleshooting
 If expected pods are missing, crashing or have exited with error, check pods logs or deployment events with `kubectl describe` command.
 Once event or logs are checked, propose a correction to the helmfile release configuration or to the terraform resources.
-Re-run terraform apply command and check that all pods are running without any errors.
+Re-run `terraform apply` command and check that all pods are running without any errors.

@@ -10,7 +10,7 @@ Custom [Claude Code skills](https://code.claude.com/docs/en/skills) for building
 | [voltdb-proc-helper](skills/voltdb-proc-helper/)                             | Analyzes data models to recommend partitioning strategies, then generates DDL schemas and stored procedures.                 |
 | [voltdb-it-tests-helper](skills/voltdb-it-tests-helper/)                     | Generates integration tests using VoltDB Enterprise Docker testcontainer with realistic test data.                           |
 | [voltdb-partitioned-client-helper](skills/voltdb-partitioned-client-helper/) | End-to-end orchestrator that creates complete partitioned VoltDB client applications by coordinating the other three skills. |
-| [voltdb-kubernetes](skills/voltdb-kubernetes/)                               | Describes steps to create deployemnt scripts as code.                                                                        |
+| [voltdb-kubernetes](skills/volt-kubernetes/)                               | Describes steps to create deployemnt scripts as code.                                                                        |
 
 ## Architecture
 
