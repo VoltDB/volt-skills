@@ -260,7 +260,7 @@ resource "kubernetes_secret" "dockerio_registry" {
 ```
 
 ### Step 6: Verify the deployment
-Run `terraform apply` command.
+For the first time run `terraform init` command. Then run `terraform apply` command.
 Verify that the deployment is working as expected.
 Wait for specific pod to be ready - `kubectl wait --for=condition=ready pod -l release=<release_name> -n ${namespace} --timeout=300s;` or call `kubectl get pods -n <namespace>` and check that all pods are running without any errors. 
 
