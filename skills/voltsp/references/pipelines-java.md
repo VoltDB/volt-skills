@@ -1,39 +1,40 @@
 # Pipelines (Java DSL)
 
-Use this when writing a pipeline in Java.
+Use this when defining pipelines as Java classes that implement `VoltPipeline`.
 
-## Project bootstrap (optional)
+## Prerequisites
 
-If you have access to the VoltSP Maven archetype:
+VoltSP publishes its APIs to the maven central. These are required to compile pipelines
+and use sink/source/processor plugins. The groupId of the jars is `org.voltdb` and
+artifact id starts with `volt-stream-`. At a minimum you need to have `org.voltdb:volt-stream-api` and `org.voltdb:volt-stream-connectors-api` dependencies.
 
-```shell
-mvn archetype:generate                                 \
-    -DarchetypeGroupId=org.voltdb                      \
-    -DarchetypeArtifactId=volt-stream-maven-quickstart \
-    -DarchetypeVersion=<voltsp-version>
-```
+For Maven project setup and a starter `pom.xml`, read `references/maven-setup.md`.
 
-## Pipeline shape
+## Core shape
 
-- Implement `org.voltdb.stream.api.pipeline.VoltPipeline`.
-- Wire the stream as: `consumeFromSource(...) -> processWith(...) -> terminateWithSink(...)`.
+Always wire the stream in this order:
 
-Minimal example (stdin -> uppercase -> stdout):
+1. `consumeFromSource(...)`
+2. zero or more `processWith(...)`
+3. `terminateWithSink(...)`
+
+Minimal pattern:
 
 ```java
-import org.voltdb.stream.api.ExecutionContext;
+import org.voltdb.stream.api.ExecutionContext.ConfigurationContext;
 import org.voltdb.stream.api.Sinks;
 import org.voltdb.stream.api.Sources;
 import org.voltdb.stream.api.pipeline.VoltPipeline;
 import org.voltdb.stream.api.pipeline.VoltStreamBuilder;
 
-public final class StdinToStdout implements VoltPipeline {
+public final class ExamplePipeline implements VoltPipeline {
   @Override
   public void define(VoltStreamBuilder stream) {
-    ExecutionContext.ConfigurationContext cfg = stream.getExecutionContext().configurator();
-    int tps = cfg.findByPath("tps").orElse(10);
+    ConfigurationContext config = stream.getExecutionContext().configurator();
+    int tps = config.findByPath("generator.tps").orElse(10);
 
     stream
+      .withName("example-pipeline")
       .consumeFromSource(Sources.generateAtRate(tps, () -> "hello\n"))
       .processWith(String::toUpperCase)
       .terminateWithSink(Sinks.stdout());
@@ -41,17 +42,31 @@ public final class StdinToStdout implements VoltPipeline {
 }
 ```
 
-## Configuration: keep env-specific values out of code
+## Batch semantics and cancellation
 
-- CLI: pass config YAML with `--config` (and `--configSecure` for secrets).
-- Kubernetes/Helm: put values under `streaming.pipeline.configuration`: see `references/kubernetes.md`.
+- Treat every source `process(batchId, ...)` call as one batch.
+- Keep source and sink behavior idempotent where possible.
+- Stop long-running pipelines explicitly via `context.execution().cancel()` when business conditions require it.
 
-## Packaging and dependencies
+## Error routing and alternate sinks
 
-- Build your app JAR: `mvn clean package` (produces `target/*.jar`).
-- If you rely on VoltSP-provided connectors/plugins, keep those dependencies as `scope=provided` so your app compiles but you don’t ship duplicates.
+- Configure global handling with `stream.onError().setExceptionHandler(...)`.
+- Route failed records to named sinks with `context.execution().emit("sinkName", record)`.
+- Expect commit and retry behavior around sink interactions; asynchronous commits can use `nextCommitResult()`.
+- Tune async commit timeout with `voltsp.commit.async.timeout.ms` when default timeout is too strict for downstream latency.
 
-## “Inline operator” vs “plugin”
+## Configuration boundary
 
-- Inline (in the pipeline JAR) for one-off logic.
-- Prefer a reusable plugin when the operator needs to be shared across pipelines/teams or shipped separately: see `references/plugins.md`.
+- Keep environment values in runtime config (`--config`, Helm `streaming.pipeline.configuration`).
+- Read config from `stream.getExecutionContext().configurator().findByPath(...)`.
+- For builders that support auto-configuration, prefer reading common operator settings from config and override only values that must remain programmatic.
+- If both config and Java DSL set the same property, Java DSL wins.
+
+Read `references/configuration.md` for interpolation/secrets details.
+
+## Dependencies and packaging
+
+- Keep VoltSP-provided plugin APIs with Maven scope `provided`.
+- Package pipeline code and non-provided dependencies into your app artifact.
+- Verify classpath visibility before runtime (`CP` on bare metal, mounted app JAR in containers/Helm).
+- Use the template at `assets/templates/maven/pom.xml` as a starting point.

@@ -1,39 +1,58 @@
-# Pipelines (YAML-defined)
+# Pipelines (YAML API)
 
-Use this when you want to define the whole pipeline declaratively, without writing Java.
+Use this when defining the full pipeline declaratively.
 
-## Pipeline definition vs runtime configuration
+## Required structure
 
-- **Pipeline definition YAML** describes the pipeline (`version`, `name`, `source`, `processors`, `sink`, `resources`, `logging`, ...).
-- **Runtime configuration YAML** (CLI `--config` / Helm values) provides environment-specific properties and secrets.
-
-## Minimal pipeline example
+Use this as the baseline shape:
 
 ```yaml
-$schema: "https://docs.voltdb.com/ActiveSP/schemas/voltsp<version>.json"
+$schema: "https://docs.voltdb.com/ActiveSP/schemas/voltsp1.6.0.json"
 version: 1
 name: "stdin-to-stdout"
-
-source:
-  stdin: {}
-
-processors:
-  - javascript:
-      script: |
-        function process(input) {
-          return input;
-        }
-
-sink:
-  stdout: {}
+source: {}
+processors: []
+sink: {}
 ```
 
-Notes:
+Rules:
 
-- Set `<version>` to your VoltSP release (or just rely on IDE schema association).
-- Use `$schema` to get autocomplete and validation in your editor.
+- `version` must be `1`.
+- `name`, `source`, and `sink` are required.
+- `processors`, `resources`, and `logging` are optional.
+- Prefer `$schema` for IDE autocomplete and validation.
 
-## Run with the CLI
+## Definition vs runtime config
 
-- `voltsp -l /path/to/license.xml path/to/pipeline.yaml`
-- Add runtime config when needed (varies by version): `--config path/to/config.yaml`
+Do not mix these concepts:
+
+- Pipeline definition YAML: structure and operator graph (`source`, `processors`, `sink`, `resources`, `logging`).
+- Runtime configuration YAML: environment values consumed by operators/builders or `configurator().findByPath(...)`.
+
+Use `scripts/check_voltsp_yaml_layout.py` to catch this mix-up early.
+
+## Function-valued fields
+
+When an operator expects a function, choose one of:
+
+- Java method reference: `com.example.Factory::mapEvent`
+- Inline script (JavaScript/Python): code block under field value
+
+For Java method references:
+
+- Keep the target method public and unambiguous.
+- Avoid overloaded names for method references.
+- Ensure classes are present on classpath at startup.
+
+## Resources and logging
+
+- Define reusable clients under `resources` and reference them by name in operators.
+- Use `logging.globalLevel` and `logging.loggers` for runtime log tuning.
+- Remember YAML logging config applies after startup; startup-time logging may still require CLI/Helm logging settings.
+
+## Common startup failures
+
+- Class not found for method references: classpath or FQCN issue.
+- Ambiguous method name: overloaded method reference.
+- Invalid YAML type for operator field: schema mismatch.
+- Missing required section (`name`, `source`, `sink`) or invalid `version`.

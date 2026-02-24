@@ -1,0 +1,21 @@
+package __PACKAGE__;
+
+import org.voltdb.stream.api.ExecutionContext.ConfigurationContext;
+import org.voltdb.stream.api.Sinks;
+import org.voltdb.stream.api.Sources;
+import org.voltdb.stream.api.pipeline.VoltPipeline;
+import org.voltdb.stream.api.pipeline.VoltStreamBuilder;
+
+public final class __CLASS__ implements VoltPipeline {
+  @Override
+  public void define(VoltStreamBuilder stream) {
+    ConfigurationContext config = stream.getExecutionContext().configurator();
+    int tps = config.findByPath("generator.tps").orElse(10);
+
+    stream
+      .withName("__PIPELINE_NAME__")
+      .consumeFromSource(Sources.generateAtRate(tps, () -> "hello\\n"))
+      .processWith(String::toUpperCase)
+      .terminateWithSink(Sinks.stdout());
+  }
+}

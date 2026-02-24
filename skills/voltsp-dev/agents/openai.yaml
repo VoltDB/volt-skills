@@ -1,0 +1,4 @@
+interface:
+  display_name: "VoltSP (Internal)"
+  short_description: "VoltSP repo dev, build, deploy, test"
+  default_prompt: "Use $voltsp-internal to help me develop and test VoltSP/volt-stream internals in this repo."

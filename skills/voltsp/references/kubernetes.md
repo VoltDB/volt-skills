@@ -2,27 +2,27 @@
 
 Use this when deploying VoltSP to Kubernetes via Helm.
 
-## Prereqs
+## Prerequisites
 
 - Kubernetes cluster + `kubectl`
 - Helm
 - A valid VoltSP license file
-- Access to the VoltSP chart + images for your organization
+- Access to the VoltSP chart and compatible images
 
 ## Typical workflow
 
-1) Build your pipeline JAR:
+1. Build pipeline app JAR:
 
 - `mvn clean package`
 
-2) Ensure Helm chart repos are configured (example):
+2. Refresh chart repos:
 
 ```shell
 helm repo add voltdb https://voltdb-kubernetes-charts.storage.googleapis.com
 helm repo update
 ```
 
-3) Create a `values.yaml` with resources + pipeline entry point:
+3. Define release values:
 
 ```yaml
 replicaCount: 1
@@ -36,14 +36,16 @@ resources:
     memory: 2G
 
 streaming:
+  longRunning: true
   pipeline:
     className: com.acme.MyPipeline
     configuration:
-      # your app config (read via configurator.findByPath(...))
-      tps: 100
+      generator:
+        tps: 100
+    configurationSecure: {}
 ```
 
-4) Install:
+4. Install:
 
 ```shell
 export MY_VOLT_LICENSE=$HOME/licenses/volt-license.xml
@@ -54,12 +56,28 @@ helm install my-pipeline voltdb/volt-streams               \
   --values values.yaml
 ```
 
-Notes:
+## Configuration behavior
 
-- Chart/property names can differ by VoltSP version; confirm with your chart docs.
-- You can also “auto-configure” built-in sinks/sources by putting their config under `streaming.pipeline.configuration.{source|sink|processor}.*`.
+- Put custom app values under `streaming.pipeline.configuration`.
+- Put secrets under `streaming.pipeline.configurationSecure`.
+- Auto-configure built-in operators by setting values under:
+  - `streaming.pipeline.configuration.source.*`
+  - `streaming.pipeline.configuration.processors.*`
+  - `streaming.pipeline.configuration.sink.*`
+- If both Helm configuration and Java DSL set same operator field, Java DSL value takes precedence.
 
-Operational checks:
+## Horizontal scaling
 
-- `kubectl get pods`
-- `kubectl logs <pod>`
+- HPA applies only when `streaming.longRunning: true`.
+- Typical settings:
+  - `autoscaling.enabled`
+  - `autoscaling.minReplicas`
+  - `autoscaling.maxReplicas`
+  - `autoscaling.targetCPUUtilizationPercentage`
+  - `autoscaling.targetMemoryUtilizationPercentage`
+
+## Operational checks
+
+- `kubectl get pods -n <namespace>`
+- `kubectl logs <pod> -n <namespace>`
+- `kubectl describe pod <pod> -n <namespace>`

@@ -1,29 +1,51 @@
 ---
 name: voltsp
-description: Build and troubleshoot VoltSP/volt-stream pipelines and plugins (Java DSL and YAML pipelines), run them via CLI or Kubernetes/Helm, and write Testcontainers-based tests. Use when authoring pipelines, deployment configs.
+description: Build, troubleshoot, and test VoltSP/volt-stream pipelines and custom operators (Java DSL and YAML API), including runtime configuration/secrets interpolation and deployment via CLI or Kubernetes/Helm. Use when authoring pipeline definitions, environment configs, plugin extensions, or pipeline validation tests.
 ---
 
-# VoltSP / volt-stream
+# VoltSP Pipeline Engineering
 
-The current VoltSP version is 1.6.0, released on 2025-11-24.
+Use this skill as a compact execution guide, then load only the reference file needed for the current task.
 
-Use this skill as an index and workflow guide for:
-- Writing pipelines (Java DSL or YAML)
-- Running pipelines (CLI, Docker, Kubernetes/Helm)
-- Testing (unit/integration/e2e with Testcontainers)
-- Developing plugins (sources/sinks/processors/resources/emitters)
+Prefer official VoltSP documentation whenever details conflict with memory.
 
-## Start here (pick the track)
+## Choose the track
 
-- Pipeline authoring (Java DSL): read `references/pipelines-java.md`.
-- Pipeline authoring (YAML-defined): read `references/pipelines-yaml.md`.
-- Run locally via CLI: read `references/cli.md`.
-- Run on Kubernetes/Helm: read `references/kubernetes.md`.
-- Testing (unit/integration/e2e): read `references/testing.md`.
-- Plugin development (sources/sinks/processors/resources/emitters): read `references/plugins.md`.
+1. Choose pipeline definition style:
+- Java DSL: read `references/pipelines-java.md` and `references/maven-setup.md`.
+- YAML API: read `references/pipelines-yaml.md`.
 
-## Output expectations
+2. Choose runtime/deployment context:
+- Local CLI: read `references/cli-bare-metal.md`.
+- Kubernetes/Helm: read `references/kubernetes.md`.
 
-- Prefer linking to these `references/` files (or upstream public docs) instead of re-explaining them.
-- Keep guidance copy/pasteable and avoid internal URLs, internal artifact registries, and internal-only build requirements.
-- If behavior is version-specific or unclear, ask for the VoltSP version and/or the output of `voltsp --help`.
+3. Configure values and secrets:
+- Runtime configuration model + interpolation + secure config: read `references/configuration.md`.
+
+4. Implement extensions and tests:
+- Plugin/operator selection: read `references/plugins-catalog.md`.
+- Plugin deep dives and response format: read `references/plugins.md`.
+- Test strategy (unit/in-process/Testcontainers): read `references/testing.md`.
+- E2E-backed pipeline implementation patterns: read `references/pipeline-kinds.md`.
+
+## Deterministic resources
+
+Use deterministic helpers for repetitive or fragile setup work:
+
+- Create starter files from templates with:
+  `python3 scripts/scaffold_voltsp_pipeline.py --out-dir <dir> --pipeline-name <name> --track <java|yaml|both>`.
+- Validate separation of pipeline definition vs runtime config/helm values with:
+  `python3 scripts/check_voltsp_yaml_layout.py --definition <pipeline.yaml> [--config <config.yaml>] [--helm-values <values.yaml>]`.
+
+Template files used by the scaffold script:
+- `assets/templates/java/Pipeline.java.tmpl`
+- `assets/templates/maven/pom.xml`
+- `assets/templates/yaml/pipeline-definition.yaml`
+- `assets/templates/yaml/runtime-config.yaml`
+- `assets/templates/helm/values.yaml`
+
+## Output rules
+
+- Return copy-pasteable commands and files.
+- Keep environment-specific values in config, not hardcoded in pipeline logic.
+- Use secure paths for secrets (`--configSecure`, Helm `configurationSecure`, or secret interpolation) instead of plain values.
