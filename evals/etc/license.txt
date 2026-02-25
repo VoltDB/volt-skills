@@ -1,0 +1,2 @@
+This file is part of Volt Active Data AI.
+Copyright (C) ${license.git.copyrightYears} Volt Active Data Inc. All rights reserved.

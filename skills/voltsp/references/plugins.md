@@ -1,33 +1,36 @@
-# Plugins (sources/sinks/processors/resources/emitters)
+# Plugins Guide (Sources, Sinks, Processors)
 
-Use this as a quick “how to structure a plugin” index + checklist.
+Use this file as the entry point for plugin/operator selection.
 
-## Module layout
+## Workflow
 
-- A plugin is usually a separate Maven module that produces a JAR consumed by VoltSP.
-- If you are working inside the VoltSP source repo, plugins typically live under `plugins/<name>/` and are added to the parent `plugins/pom.xml`.
+1. Open `references/plugins-catalog.md`.
+2. Pick operator by type (`source`, `sink`, `processor`) and use case.
+3. If operator is in the priority set, open its detailed file under:
+- `references/plugins/sources/<name>.md`
+- `references/plugins/sinks/<name>.md`
+- `references/plugins/processors/<name>.md`
+4. If operator is catalog-only, provide minimal guidance from catalog and note that details are pending.
 
-## Minimal implementation checklist
+## Detailed plugin coverage in this skill
 
-- Define a config `record` in `org.voltdb.stream.plugin.<name>.api` and annotate it with `@VoltSP.{Source|Sink|Processor|Resource|Emitter}` + `@Field(...)`.
-- Implement the operator in `org.voltdb.stream.plugin.<name>` with a public constructor `(Logger, <ConfigRecord>)`.
-- Build the module so the `*ConfigBuilder` types (if your build generates them) are created and defaults are validated.
+Priority set includes dedicated docs for:
 
-Minimal config record shape:
+- Sources: `stdin`, `file`, `collection`, `generate`, `kafka`, `network`, `mqtt`, `beats`
+- Sinks: `stdout`, `blackhole`, `file`, `kafka`, `network`, `elastic`, `syslog`, `mqtt`, `voltdb-procedure`, `voltdb-bulk-insert`
+- Processors: `javascript`, `java`, `python`, `voltdb-cache`, `onnx`, `onnx-genai`
 
-```java
-@VoltSP.Source(name = "my-source", implementation = "org.acme.MySource")
-public record MySourceConfig(
-  @Field(description = "Address to bind", required = true) HostAndPort address
-) {}
-```
+## Required answer shape for plugin-specific requests
 
-## Useful patterns
+For any plugin-specific response, keep this order:
 
-- Prefer `ExecutionContext.configurator().configureOnce(...)` for expensive shared fixtures.
-- Default exception handler: use `config.exceptionHandler()` when present, otherwise fall back to `context.execution()::handleException`.
+1. Purpose
+2. When to use / avoid
+3. Java example
+4. YAML example
+5. Runtime config keys
+6. Helm notes
+7. Testing checks
+8. Common failures
 
-## Testing
-
-- Use `MainSimulator`/`MainSimulation` for in-process simulations and `StreamEnvExtension` + Testcontainers for integration tests.
-- Prefer `Awaitility.await()` over `Thread.sleep()`.
+This matches the per-plugin template and keeps answers consistent for evals.
