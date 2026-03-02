@@ -1,24 +1,14 @@
----
-name: voltdb-min-client-helper
-description: Creates minimal VoltDB client Maven projects with connection code, dependencies, and build configuration. Use when user wants to create a new VoltDB project, set up Maven dependencies, or scaffold a VoltDB client application.
----
+# Maven Project Structure and Setup
 
-# VoltDB Minimal Client Helper
+> **Category:** Project Setup | **Impact:** MEDIUM
 
-This skill creates a minimal, buildable VoltDB client Maven project. It provides the project scaffolding that other skills (`voltdb-proc-helper`, `voltdb-it-tests-helper`) populate with schema-specific content.
+## Context
 
-For a complete end-to-end experience with partitioning analysis, use `voltdb-partitioned-client-helper` instead.
-
-## Capabilities
-
-- Create Maven project scaffolding with VoltDB dependencies
-- Generate `pom.xml` with correct plugin configuration
-- Provide build and verify instructions
-- Optionally generate a simple Key-Value example (DDL, procedures, tests) as a quick-start
+VoltDB client projects use Maven for build management. This rule defines the complete project structure, `pom.xml` template with all required dependencies and plugins, and build/verify instructions.
 
 ## Prerequisites
 
-Before using this skill, ensure:
+Before creating a project, ensure:
 - **Docker** is installed and running (required for VoltDB testcontainer)
 - **Java 17+** is installed
 - **Maven 3.6+** is installed
@@ -29,7 +19,6 @@ Before using this skill, ensure:
 ```bash
 # 1. Verify Docker is running (REQUIRED - tests will fail without Docker)
 docker info
-
 # If Docker is not running, start it:
 # macOS: open -a Docker
 # Linux: sudo systemctl start docker
@@ -43,24 +32,11 @@ mvn -version
 # 4. Set up VoltDB license (choose one option)
 # Option A: Environment variable (recommended)
 export VOLTDB_LICENSE=/path/to/your/license.xml
-
 # Option B: Copy to default location
 cp /path/to/your/license.xml /tmp/voltdb-license.xml
 ```
 
-## Instructions
-
-When invoked, follow this workflow:
-
-### Step 1: Gather Requirements
-
-Ask the user:
-1. **Project name**: What should the project be called?
-2. **Package name**: Java package (default: com.example.voltdb)
-3. **Output directory**: Where to create the project?
-4. **Quick-start example**: Include a simple Key-Value example? (If yes, also use `voltdb-proc-helper` and `voltdb-it-tests-helper` to generate the example DDL, procedures, and tests)
-
-### Step 2: Create Project Structure
+## Project Directory Structure
 
 ```
 <project-name>/
@@ -77,7 +53,7 @@ Ask the user:
 └── README.md
 ```
 
-### Step 3: Generate pom.xml
+## pom.xml Template
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -206,24 +182,19 @@ Ask the user:
 </project>
 ```
 
-### Step 4: Generate README
+## Key Technical Details
 
-Include:
-1. Project description
-2. Prerequisites (Java 17+, Maven 3.6+, Docker, VoltDB license)
-3. License setup instructions
-4. Build: `mvn clean package -DskipTests`
-5. Run tests: `mvn verify`
+| Item | Value |
+|------|-------|
+| VoltDBCluster import | `org.voltdbtest.testcontainer.VoltDBCluster` |
+| Docker image | `voltdb/voltdb-enterprise:` + version |
+| Schema location | `schema/ddl.sql` (NOT in resources) |
+| Procedure dependency | `volt-procedure-api` (NOT `voltdb`) |
+| Constructor | `new VoltDBCluster(licensePath, image, extraLibDir)` |
 
-### Step 5: Provide Build and Verify Instructions
-
-After generating the project, provide these instructions to the user:
+## Build and Verify Instructions
 
 ```bash
-# ============================================
-# BUILD AND VERIFY THE GENERATED PROJECT
-# ============================================
-
 # 1. VERIFY DOCKER IS RUNNING (tests require Docker)
 docker info
 # If not running: macOS: open -a Docker | Linux: sudo systemctl start docker
@@ -241,9 +212,7 @@ mvn clean package -DskipTests
 # 5. RUN INTEGRATION TESTS (starts VoltDB in Docker, loads schema, runs tests)
 mvn verify
 
-# ============================================
-# EXPECTED OUTPUT ON SUCCESS
-# ============================================
+# EXPECTED OUTPUT ON SUCCESS:
 # - Docker pulls voltdb/voltdb-enterprise image (first run only)
 # - VoltDB container starts
 # - JAR with stored procedures is loaded
@@ -252,29 +221,9 @@ mvn verify
 # - Container shuts down
 # - BUILD SUCCESS message
 
-# ============================================
-# TROUBLESHOOTING
-# ============================================
+# TROUBLESHOOTING:
 # "Cannot connect to Docker daemon" -> Start Docker: open -a Docker (macOS)
 # "License file not found" -> Check VOLTDB_LICENSE env var or /tmp/voltdb-license.xml
 # "Schema file not found" -> Ensure schema/ddl.sql exists in project root
 # "Connection refused" -> Wait for Docker to fully start, then retry
 ```
-
-## Key Technical Details
-
-| Item | Value |
-|------|-------|
-| VoltDBCluster import | `org.voltdbtest.testcontainer.VoltDBCluster` |
-| Docker image | `voltdb/voltdb-enterprise:` + version |
-| Schema location | `schema/ddl.sql` (NOT in resources) |
-| Procedure dependency | `volt-procedure-api` (NOT `voltdb`) |
-| Constructor | `new VoltDBCluster(licensePath, image, extraLibDir)` |
-
-## Related Skills
-
-| Skill | Use For |
-|-------|---------|
-| `voltdb-proc-helper` | Generate DDL schemas and stored procedures |
-| `voltdb-it-tests-helper` | Generate integration tests with testcontainer |
-| `voltdb-partitioned-client-helper` | Full end-to-end guided experience with partitioning |
