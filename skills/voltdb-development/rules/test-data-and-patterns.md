@@ -1,149 +1,12 @@
----
-name: voltdb-it-tests-helper
-description: Generates integration tests for VoltDB client applications using VoltDB Enterprise Docker testcontainer. Creates test base class, realistic test data generators, and integration test classes. Use when user needs VoltDB integration tests, test data generation, or testcontainer setup.
----
+# TestDataGenerator, IT Test Class, and Test Configuration
 
-# VoltDB Integration Tests Helper
+> **Category:** Integration Testing | **Impact:** MEDIUM
 
-This skill generates integration tests for VoltDB client applications. Tests use the [volt-testcontainer](https://github.com/VoltDB/volt-testcontainer) library to run VoltDB Enterprise in Docker.
+## Context
 
-## Capabilities
+This rule covers all schema-dependent test artifacts that get generated together: the test data generator, the integration test class, test.properties configuration, and run instructions.
 
-- Generate `IntegrationTestBase.java` with VoltDBCluster lifecycle management
-- Generate schema-aware `TestDataGenerator.java` with realistic data
-- Generate integration test classes (`*IT.java`) that verify all procedures
-- Generate `test.properties` for Maven resource filtering
-- Support both simple and partitioned schemas
-
-## Prerequisites
-
-Before running generated tests:
-- **Docker** is installed and running (required for VoltDB testcontainer)
-- **Java 17+** is installed
-- **Maven 3.6+** is installed
-- **VoltDB Enterprise license** file is available
-- Project is built with `mvn clean package -DskipTests` (so procedure JARs exist)
-
-## Instructions
-
-When invoked, follow this workflow:
-
-### Step 1: Understand the Project Context
-
-Determine what already exists:
-1. **DDL schema** (`schema/ddl.sql`) — what tables and columns exist?
-2. **Stored procedures** (`src/main/java/[package]/procedures/`) — what operations are available?
-3. **Partitioning** — which tables are partitioned, on which columns?
-4. **Package name** — Java package used in the project
-
-If these don't exist yet, advise the user to use `voltdb-proc-helper` first to generate DDL and procedures.
-
-### Step 2: Generate IntegrationTestBase.java
-
-Create `src/test/java/[package]/IntegrationTestBase.java`:
-
-```java
-package [package];
-
-import org.voltdb.client.ClientResponse;
-import org.voltdbtest.testcontainer.VoltDBCluster;
-
-import java.io.File;
-import java.io.FileFilter;
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.Properties;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
-public class IntegrationTestBase {
-
-    private static final Properties props = new Properties();
-
-    static {
-        try (InputStream input = IntegrationTestBase.class.getClassLoader()
-                .getResourceAsStream("test.properties")) {
-            if (input != null) {
-                props.load(input);
-            }
-        } catch (IOException e) {
-            // Use defaults
-        }
-    }
-
-    public String getImageVersion() {
-        return props.getProperty("voltdb.image.version", "14.3.1");
-    }
-
-    public void configureTestContainer(VoltDBCluster db) {
-        try {
-            db.start();
-            ClientResponse response;
-            File[] jars = getJars();
-            if (jars != null) {
-                for (File jarToLoad : jars) {
-                    System.out.println("Loading classes from: " + jarToLoad);
-                    response = db.loadClasses(jarToLoad.getAbsolutePath());
-                    assertEquals(ClientResponse.SUCCESS, response.getStatus(),
-                        "Load classes must pass");
-                }
-            }
-
-            String basedir = System.getProperty("user.dir");
-            File schemaFile = new File(basedir, "schema/ddl.sql");
-            if (schemaFile.exists()) {
-                System.out.println("Loading schema from: " + schemaFile.getAbsolutePath());
-                assertTrue(db.runDDL(schemaFile), "Schema must get loaded");
-            } else {
-                System.err.println("Schema file not found at: " + schemaFile.getAbsolutePath());
-            }
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    protected String getExtraLibDirectory() {
-        String basedir = System.getProperty("user.dir");
-        File libdir = new File(basedir, "target/lib");
-        if (libdir.exists() && libdir.isDirectory() &&
-            Arrays.stream(libdir.listFiles())
-                .anyMatch(file -> file.getName().toLowerCase().endsWith(".jar"))) {
-            return libdir.getAbsolutePath();
-        }
-        return null;
-    }
-
-    protected File[] getJars() {
-        String relPath = getClass().getProtectionDomain()
-            .getCodeSource().getLocation().getFile();
-        File targetDir = new File(relPath + "/../");
-        FileFilter jarFiles = pathname -> {
-            if (pathname.isDirectory()) return false;
-            String name = pathname.getName();
-            return name.endsWith(".jar") && !name.startsWith("original");
-        };
-        return targetDir.listFiles(jarFiles);
-    }
-
-    protected String getLicensePath() {
-        String licensePath = "/tmp/voltdb-license.xml";
-        String envLicense = System.getenv("VOLTDB_LICENSE");
-        if (envLicense != null) {
-            File file = Paths.get(envLicense).toAbsolutePath().toFile();
-            if (file.exists()) {
-                licensePath = file.getAbsolutePath();
-            }
-        }
-        System.out.println("License file path is: " + licensePath);
-        return licensePath;
-    }
-}
-```
-
-### Step 3: Generate TestDataGenerator.java
+## TestDataGenerator Template
 
 Create `src/test/java/[package]/TestDataGenerator.java`.
 
@@ -159,7 +22,7 @@ client.callProcedureSync("UpsertPet", shelterId, petId, name, type, status);
 client.callProcedureSync("UpsertPet", petId, name, type, shelterId, status);
 ```
 
-**Template for simple Key-Value schema:**
+### Key-Value Schema Template
 
 ```java
 package [package];
@@ -264,7 +127,9 @@ public class TestDataGenerator {
 }
 ```
 
-**For partitioned schemas**, adapt the generator to:
+### Partitioned Schema Guidelines
+
+For partitioned schemas, adapt the generator to:
 1. Generate data for each table in insertion order (parent tables first)
 2. Use realistic sample data arrays per column type (names, statuses, dates, etc.)
 3. Maintain referential integrity (use generated parent IDs for child records)
@@ -272,9 +137,11 @@ public class TestDataGenerator {
 5. Include methods for each table: `generate[Table]Data(int count)`
 6. Include query/print methods for each read procedure
 
-### Step 4: Generate Integration Test Class
+## Integration Test Class Template
 
-Create `src/test/java/[package]/[TestName]IT.java`:
+Create `src/test/java/[package]/[TestName]IT.java`.
+
+The test class supports both testcontainer and external modes via the base class helper methods.
 
 ```java
 package [package];
@@ -296,14 +163,17 @@ public class [TestName]IT extends IntegrationTestBase {
 
     @Test
     public void test[Scenario]() {
-        VoltDBCluster db = new VoltDBCluster(
-            getLicensePath(),
-            "voltdb/voltdb-enterprise:" + getImageVersion(),
-            getExtraLibDirectory()
-        );
+        VoltDBCluster db = null;
         try {
-            configureTestContainer(db);
-            Client2 client = db.getClient2();
+            Client2 client;
+            if (isTestContainerMode()) {
+                db = createTestContainer();
+                configureTestContainer(db);
+                client = db.getClient2();
+            } else {
+                client = createExternalClient();
+                configureExternalInstance(client);
+            }
 
             // Use TestDataGenerator to insert test data
             TestDataGenerator generator = new TestDataGenerator(client);
@@ -343,15 +213,14 @@ public class [TestName]IT extends IntegrationTestBase {
         } catch (Exception e) {
             throw new RuntimeException(e);
         } finally {
-            if (db != null) {
-                db.shutdown();
-            }
+            shutdownIfNeeded(db);
         }
     }
 }
 ```
 
-**Test verification patterns to include:**
+### Test Verification Patterns
+
 - Insert N records via generator, assert all succeed
 - Query each inserted record, assert data matches
 - For co-located procedures: verify multiple result tables returned
@@ -359,14 +228,28 @@ public class [TestName]IT extends IntegrationTestBase {
 - For lookup tables: verify denormalized fields match source data
 - Edge cases: non-existent keys return empty results (not errors)
 
-### Step 5: Generate test.properties
+## test.properties Template
 
 Create `src/test/resources/integration/test.properties`:
+
 ```properties
 voltdb.image.version=${voltdb.version}
+
+# VoltDB test mode: "testcontainer" (default) or "external"
+voltdb.test.mode=testcontainer
+
+# External VoltDB connection settings (used when voltdb.test.mode=external)
+voltdb.external.host=localhost
+voltdb.external.port=21211
+
+# Testcontainer shutdown behavior (used when voltdb.test.mode=testcontainer)
+# Set to "false" to keep the container running after tests for debugging
+voltdb.testcontainer.shutdown=true
 ```
 
-### Step 6: Provide Run Instructions
+## Run Instructions
+
+### Testcontainer mode (default)
 
 ```bash
 # 1. VERIFY DOCKER IS RUNNING (tests require Docker)
@@ -374,7 +257,6 @@ docker info
 
 # 2. SET UP VOLTDB LICENSE (if not already done)
 export VOLTDB_LICENSE=/path/to/your/license.xml
-# OR: cp /path/to/license.xml /tmp/voltdb-license.xml
 
 # 3. BUILD THE PROJECT (compile and package, needed for procedure JARs)
 mvn clean package -DskipTests
@@ -389,7 +271,7 @@ mvn verify
 # - DDL schema is applied
 # - Test data is generated and inserted
 # - All query scenarios verified
-# - Container shuts down
+# - Container shuts down (unless voltdb.testcontainer.shutdown=false)
 # - BUILD SUCCESS message
 
 # TROUBLESHOOTING:
@@ -400,14 +282,25 @@ mvn verify
 # "Load classes must pass" -> Run "mvn clean package -DskipTests" first
 ```
 
+### External mode
+
+```bash
+# 1. ENSURE VOLTDB IS RUNNING at the configured host/port
+# 2. BUILD THE PROJECT
+mvn clean package -DskipTests
+
+# 3. RUN INTEGRATION TESTS
+mvn verify
+
+# NOTE: Docker is NOT required in external mode.
+# Tests connect directly to the running VoltDB instance
+# and load classes via @UpdateClasses and schema via @AdHoc.
+```
+
 ## Key Technical Details
 
 | Item | Value |
 |------|-------|
-| VoltDBCluster import | `org.voltdbtest.testcontainer.VoltDBCluster` |
-| Docker image | `voltdb/voltdb-enterprise:` + version |
-| Schema location | `schema/ddl.sql` (NOT in resources) |
-| Constructor | `new VoltDBCluster(licensePath, image, extraLibDir)` |
 | Client API | `db.getClient2()` returns `Client2` |
 | Procedure calls | `client.callProcedureSync(procName, args...)` |
 | Result parsing | `response.getResults()[0]`, `table.advanceRow()`, `table.getString(col)` |
