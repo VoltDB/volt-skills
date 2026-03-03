@@ -3,21 +3,41 @@ name: volt-kubernetes
 description: Helps deploying VoltDB cluster on Kubernetes. Use when user wants to create scripts creating clusters on Kubernetes with Volt's releases. Use when user asks to create terraform, helmfile or helm scripts. Use when user want to create configuration as code.
 ---
 
-# Helper for deploying VoltDB's cluster on Kubernetes
+# Helper for deploying Volt's resources on Kubernetes
 This skill focuses on creating cluster configuration as code using terraform, helmfile and helm.
-Helm tool is used to configure kubernetes resources for a VoltDB cluster, called a release.
-Helmfile tool is used to manage multiple helm releases.
-Terraform tool is used to create and manage cloud resources and high-level kubernetes resources.
 
-All those tools are using scripts, the code, that can be checked into a git repository and that can evolve in time.
-After a change is approved, a specific tool should be re-run to update resources.
-This skill helps to automate that process.
+## Tool Overview
+- **Helm**: Configures kubernetes resources for a VoltDB cluster (called a release)
+- **Helmfile**: Manages multiple helm releases with dependencies
+- **Terraform**: Creates and manages cloud resources and high-level kubernetes resources
+
+All tools use declarative scripts that can be version-controlled in git.
+After changes are approved, re-run the specific tool to update resources.
+
+## Quick Reference for LLM
+
+**Key patterns to follow:**
+1. **Directory structure**: Use modular, descriptive filenames (e.g., `voltdb-master.tf`, not `cluster.tf`)
+1. **StateValues separation**: `base.yaml` (versions), `env.yaml.gotmpl` (env vars), `override.yaml.local` (local overrides)
+1. **Create default environment for HelmFile**: Always start with a default environment.
+1. **Service DNS**: `<release-name>-<service-name>.<namespace>.svc.cluster.local:<port>`
+1. **Release dependencies**: Use `needs: [namespace/release-name]` in helmfile
+1. **Local charts**: Use `chart: {{ .StateValues.voltsp.chart.path }}` for development
+1. **VoltDB Published charts**: Use `chart: voltdb/voltdb` with `version: "{{ .StateValues.voltdb.chart.version }}"`
+1. **VoltSP Published charts**: Use `chart: voltdb/volt-streaming` with `version: "{{ .StateValues.voltsp.chart.version }}"`
+1. **Dangerous operations**: Comment out `initForce` and `deletePVC` by default with warnings
+1. **Gitignore patterns**: `*local` in stateValues, `*.tfvars` in terraform
+1. **Environment variables**: Pass from terraform to helmfile via `helmfile.tf` using `null_resource` with `local-exec`
 
 ## Important note about resource management
 Terraform can execute helm with the helm-release resource, but we have found it to be unreliable.
 Both terraform and helm depend on some internal state and those two are not always compatible.
-That's why I want deployment scripts to be layered. Terraform as a cloud orchestrator and helm as a kubernetes orchestrator.
-Helmfile is used to manage multiple helm releases and must be run from terraform.
+That's why deployment scripts must be layered: **Terraform as cloud orchestrator, Helm as kubernetes orchestrator**.
+Helmfile manages multiple helm releases and must be run from terraform.
+
+**Resource ownership:**
+- **Terraform manages**: Cloud resources (GKE/EKS/AKS), namespaces, secrets, network, infrastructure
+- **Helm manages**: VoltDB/VoltSP cluster resources (pods, services, configmaps created by charts)
 
 If some kubernetes resources are not strictly related to a cluster deployment, those can be created and managed by terraform.
 For example, namespaces, config maps, pvc-s, secrets, etc.
@@ -47,21 +67,38 @@ If a user cannot point to such a test, please recommend creating one and quit.
 **If a user selects a testcontainer test, please run it locally and verify that it passes.**
 
 ### Step 2: Script directory layout
-given the application location, create a directory structure at the root of the application:
+Create the following directory structure at the root of the application:
 ```text
 k8s/
   helmfile/
     stateValues/
-      base.yaml
+      base.yaml                      # Default values (versions, paths)
+      env.yaml.gotmpl                # Environment-specific values (from env vars)
+      override.yaml.local.template   # Template for local overrides
     values/
-      a-release.yaml
-    helmfile.yaml.gotmpl
-    .gitignore
-    README.md
+      <release-name>.yaml            # Helm values for each release
+    helmfile.yaml.gotmpl             # Helmfile release configuration
+    README.md                        # Instructions for running helmfile
+    .gitignore                       # Ignore *local files
   terraform/
-    .gitignore
-    README.md
+    provider.tf                      # Cloud provider configuration
+    variables.tf                     # Variable definitions
+    terraform.tfvars.template        # Template for sensitive values
+    outputs.tf                       # Output values
+    gke.tf (or eks.tf, aks.tf)       # Cluster configuration
+    network.tf                       # Network configuration
+    namespace.tf                     # Namespace and secrets
+    <resource>-<name>.tf             # Resource-specific files (e.g., voltdb-master.tf)
+    build-jar.tf                     # Application build (if needed)
+    helmfile.tf                      # Helmfile execution
+    .gitignore                       # Ignore *.tfvars, .terraform, etc.
+    README.md                        # Instructions for running terraform
 ```
+
+**Key principles:**
+- Use descriptive, resource-specific filenames in terraform (e.g., `voltdb-master.tf`, `voltdb-replica.tf`) instead of generic names
+- Separate concerns: one file per major resource or logical grouping
+- Keep sensitive data in `*.tfvars` files or `*.local` for helmfile - those files will be gitignored
 
 ### Step 3: Helm values
 Look at the testcontainers test and identify all Volt services that are deployed and their resources like schema, deployment file, jar files, configuration, etc.
@@ -69,31 +106,82 @@ For each identified cluster deployment, create a yaml file with the same name as
 Those yaml files must be created in root project directory under 'k8s/helmfile/values' directory.
 If the directory is missing, create it.
 
+**Key points:**
+- Add inline comments to warn about dangerous operations and explain critical settings
+- Comment out dangerous options like `initForce` and `deletePVC` by default
+- Add warnings about data loss risks
+- Include inline explanations for non-obvious settings
+- Schema can be inlined into yaml file or set with `--set-file` option with a local path
+- Configure topics for CDC (Change Data Capture) if needed
+
 See `references/volt-helm-release.md` for additional details.
 Always check for the newest version of the helm chart and service version that the helm chart supports.
 
 ### Step 4: Helmfile releases
-Helmfile require a strict directory structure.
-Looking from the `helmfile` root, it should follow this pattern:
-```text
+Helmfile requires a strict directory structure and configuration pattern.
+```
 helmfile/
   stateValues/
   - base.yaml
   - env.yaml.gotmpl
-  - override.yaml.local
   - override.yaml.local.template
-  - .gitignore
   values/
   helmfile.yaml.gotmpl
   README.md
+  .gitignore
 ```
 The README.md file with instructions on how to run helmfile. Helmfile can be run from terraform which should pass environment variables to helmfile. If helmfile is run from shell `terraform output name` commnad is used to get values for required environment variables.
 The `helmfile.yaml.gotmpl` file contains helmfile release configuration.
 The `stateValues` directory contains *.yaml or *.yaml.gotmpl files with helmfile values.
-The base.yaml file contains the default values for all releases.
-The env.yaml.gotmpl file contains values that are specific to the environment. Extract env value using `{{ requiredEnv "ENV_NAME" }}`. The helmfile will use keys defined in this file rather than extracting them from env.
-The override.yaml.local file contains values that are specific to the local environment. This one should not be checked in as it can contain sensitive data. Make sure adding it to .gitignore.
-The override.yaml.local.template file contains a template for the override.yaml.local file, with blank values.
+
+#### StateValues Directory
+Create the following files in `helmfile/stateValues/`:
+
+**1. base.yaml** - Default values for all releases (versions, paths):
+```yaml
+licensePath: ~/licence.xml
+voltdb:
+  chart:
+    version: "3.14.0"  # Helm chart version
+  version: "15.1.0"    # VoltDB application version
+voltsp:
+  chart:
+    version: "1.6.0"   # Helm chart version
+  version: "1.6.0"     # VoltSP application version
+  jarPath: "/path/to/voltsp.jar"  # Path to VoltSP jar file
+```
+Always use the latest version of the helm chart and application version.
+Check the helm chart and application versions in the helm repository.
+Values related to paths in this file can be overridden with local specific values in `override.yaml.local.template`.
+But keep the defaults in base.yaml.
+
+**2. env.yaml.gotmpl** - Environment-specific values (extracted from env vars):
+```yaml
+namespace: {{ requiredEnv "NAMESPACE" }}
+docker:
+  pullImageSecretName: {{ requiredEnv "DOCKER_SECRET_NAME" }}
+```
+Use `{{ requiredEnv "ENV_NAME" }}` to extract required environment variables.
+Helmfile will fail if required env vars are not set.
+
+**3. override.yaml.local.template** - Template for local overrides:
+The `override.yaml.local.template` file contains a template for the `override.yaml.local` file, with blank values.
+Do not create `override.yaml.local` file.
+The `override.yaml.local` file is created by users from the template and contains local-specific values.
+This `override.yaml.local` file should not be checked in as it can contain sensitive data. Make sure adding it to .gitignore.
+```yaml
+# Copy this file to override.yaml.local and fill in your local values
+# override.yaml.local is gitignored and should contain sensitive data
+licensePath: ""
+voltsp:
+  jarPath: ""
+```
+
+**4. .gitignore** - Ignore local override files:
+```
+*local
+```
+This prevents sensitive local configuration from being committed.
 
 #### Environment
 The helmfile.yaml.gotmpl should configure all releases using a default environment:
@@ -105,6 +193,12 @@ environments:
     - stateValues/env.yaml.gotmpl
     - path: stateValues/override.yaml.local
       required: false
+---
+repositories:
+  ...
+
+releases:
+  ...
 ```
 User can later add more environments, but this is a good starting point.
 
@@ -126,7 +220,16 @@ repositories:
 ```
 
 #### Releases
-Helmfile can manage any number of releases.
+Helmfile can manage any number of releases with dependencies.
+
+**Key patterns:**
+- Use `needs` to define release dependencies (ensures correct deployment order)
+- Use `{{ .StateValues.voltsp.chart.path }}` or `{{ .StateValues.voltdb.chart.path }}` for local charts during development
+- Use `chart: voltdb/voltdb` or `chart: voltdb/volt-streams` for published charts
+- Service DNS pattern: `<release-name>-cluster-client.{{ .StateValues.namespace }}.svc.cluster.local:<port>`
+- Kafka DNS pattern: `<release-name>-cluster-0-kafka.{{ .StateValues.namespace }}.svc.cluster.local:9092`
+
+**Example releases:**
 Example, for the `products` application:
 ```yaml
 releases:
@@ -155,7 +258,7 @@ releases:
     version: "{{ .StateValues.voltsp.chart.version }}"
     namespace: {{ .StateValues.namespace | quote }}
     needs:
-      - voltdb/voltdb-products
+      - {{ .StateValues.namespace }}/voltdb-products
     values:
       - values/voltsp-products-values.yaml
     set:
@@ -166,13 +269,20 @@ releases:
       - name: imagePullSecrets[0].name
         value: {{ .StateValues.docker.pullImageSecretName | quote }}
       - name: podEnv.kafka-bootstrap-servers
-        value: voltdb-master-cluster-0-kafka.{{ .StateValues.namespace }}.svc.cluster.local:9092
-      - name: podEnv.voltdb-replica-server
-        value: voltdb-replica-cluster-client.{{ .StateValues.namespace }}.svc.cluster.local:21212
+        value: voltdb-products-cluster-0-kafka.{{ .StateValues.namespace }}.svc.cluster.local:9092
+      - name: podEnv.voltdb-products-server
+        value: voltdb-products-cluster-client.{{ .StateValues.namespace }}.svc.cluster.local:21212
 ```
-Note that the `voltsp-products` depends on the `voltdb-products` release.
-Note that the `podEnv` section contains environment variables that are used by the VoltSP configuration in helm's values.yaml file.
-See `references/volt-helm-release.md` for information how to configure helm values.
+
+**Important notes:**
+- The `needs` field ensures releases are deployed in the correct order
+- Use `namespace/release-name` format in `needs` when releases are in the same namespace
+- The `podEnv` section sets environment variables used by the application
+- Service DNS names follow kubernetes conventions: `<service-name>.<namespace>.svc.cluster.local:<port>`
+- For local development, use `chart: {{ .StateValues.voltsp.chart.path }}` to reference local chart directories. no version is needed.
+- For production, switch to published charts: `chart: voltdb/volt-streams` with `version` specified
+
+See `references/volt-helm-release.md` for detailed helm values configuration.
 
 #### Optional Observability release
 **Propose to a user whether to include an observability release.**
@@ -212,31 +322,129 @@ Terraform should define all cloud resources required for deployment.
 Answer to those questions will drive values in variables.tf file.
 
 #### Files and directories
-Terraform resources are created in the root project directory under the 'k8s / terraform' directory.
-The terraform directory must contain the 
-- .gitignore file, ignoring at least the following files:
-  ```text
-  *.tfvars
-  .terraform
-  terraform.plan
-  terraform.tfstate
-  terraform.tfstate.backup
-  ```
-- README.md file with instructions on how to run terraform
-- variables.tf file
-- terraform.tfvars.template file with placeholders for sensitive values that will override defaults from the variables.tf file. A user must copy this file to terraform.tfvars and fill in the values
-- outputs.tf file
-- provider.tf file with cloud provider configuration
-- cluster.tf file with cluster configuration, pools, security rules, network rules, etc.
-- namespace.tf file with namespace configuration, the global secrets, etc.
-- kubectl.tf file with kubectl configuration for created project and cluster 
-- release.tf file with helmfile execution, helmfile should always be executed by terraform with specific environment variables. The `helmfile apply` must be executed, and it will figure out whether the state has changed or not. This file should include any additional post-create actions once helmfile has finished.
+Terraform resources are created in the root project directory under the 'k8s/terraform' directory.
+
+**Required files:**
+
+**1. .gitignore** - Ignore sensitive and generated files:
+```
+*.tfvars
+.terraform
+terraform.plan
+terraform.tfstate
+terraform.tfstate.backup
+.terraform.lock.hcl
+```
+
+**2. README.md** - Instructions for running terraform with prerequisites and steps
+
+**3. variables.tf** - Variable definitions with defaults:
+```terraform
+variable "project_id" {
+  description = "GCP project ID"
+  type        = string
+}
+
+variable "region" {
+  description = "GCP region"
+  type        = string
+  default     = "us-central1"
+}
+
+variable "namespace" {
+  description = "Kubernetes namespace"
+  type        = string
+  default     = "voltdb"
+}
+
+variable "docker_username" {
+  description = "Docker registry username"
+  type        = string
+  sensitive   = true
+}
+
+variable "docker_password" {
+  description = "Docker registry password"
+  type        = string
+  sensitive   = true
+}
+
+variable "docker_email" {
+  description = "Docker registry email"
+  type        = string
+  sensitive   = true
+}
+```
+
+**4. terraform.tfvars.template** - Template for sensitive values:
+```terraform
+# Copy this file to terraform.tfvars and fill in your values
+project_id       = ""
+docker_username  = ""
+docker_password  = ""
+docker_email     = ""
+```
+
+**5. outputs.tf** - Export values for helmfile and verification:
+```terraform
+output "namespace" {
+  value = kubernetes_namespace.voltdb.metadata[0].name
+}
+
+output "docker_secret_name" {
+  value = kubernetes_secret.dockerio_registry.metadata[0].name
+}
+
+output "cluster_endpoint" {
+  value = google_container_cluster.primary.endpoint
+  sensitive = true
+}
+```
+
+**6. provider.tf** - Cloud provider and kubernetes configuration
+
+**7. gke.tf (or eks.tf, aks.tf)** - Cluster configuration with node pools
+
+**8. network.tf** - Network, VPC, firewall rules configuration
+
+**9. namespace.tf** - Namespace and global secrets (docker pull secret)
+
+**10. Resource-specific files** - Use descriptive names:
+- `voltdb-products.tf` - VoltDB master cluster resources not controlled by helmfile or helm
+- `build-jar.tf` - Application build resources (if needed)
+
+**11. helmfile.tf** - Helmfile execution with environment variables:
+```terraform
+resource "null_resource" "helmfile_apply" {
+  provisioner "local-exec" {
+    command = "helmfile apply"
+    working_dir = "${path.module}/../helmfile"
+    environment = {
+      NAMESPACE          = kubernetes_namespace.voltdb.metadata[0].name
+      DOCKER_SECRET_NAME = kubernetes_secret.dockerio_registry.metadata[0].name
+    }
+  }
+
+  depends_on = [
+    kubernetes_namespace.voltdb,
+    kubernetes_secret.dockerio_registry
+  ]
+}
+```
+
+**Key principles:**
+- Use modular, resource-specific filenames instead of generic names
+- One file per major resource type or logical grouping
+- Keep sensitive values in terraform.tfvars (gitignored)
+- Export values needed by helmfile via outputs.tf
+- Pass environment variables to helmfile via helmfile.tf
 
 #### Docker Pull Secret
 In namespace.tf create a secret, with a default name `dockerio-registry`. Make sure variables contains placeholders for email, user and password that can be overridden in terraform.tfvars file.
 User can choose different name for the secret. The secret name should be added to a output.tf file.
 The downstream helmfile config should use the same secret name.
-Example:
+
+**Example in namespace.tf:**
 ```terraform
 resource "kubernetes_secret" "dockerio_registry" {
   metadata {
@@ -259,9 +467,11 @@ resource "kubernetes_secret" "dockerio_registry" {
     })
   }
 
-  depends_on = [<other_resource_name>]
+  depends_on = [kubernetes_namespace.voltdb]
 }
 ```
+
+**Important:** The secret must be created after the namespace and before helmfile execution.
 
 ### Step 6: Verify the deployment
 For the first time run `terraform init` command. Then run `terraform apply` command.
