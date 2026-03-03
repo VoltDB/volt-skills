@@ -54,7 +54,7 @@ k8s/
     stateValues/
       base.yaml
     values/
-      release-1.yaml
+      a-release.yaml
     helmfile.yaml.gotmpl
     .gitignore
     README.md
@@ -70,6 +70,7 @@ Those yaml files must be created in root project directory under 'k8s/helmfile/v
 If the directory is missing, create it.
 
 See `references/volt-helm-release.md` for additional details.
+Always check for the newest version of the helm chart and service version that the helm chart supports.
 
 ### Step 4: Helmfile releases
 Helmfile require a strict directory structure.
@@ -108,8 +109,10 @@ environments:
 User can later add more environments, but this is a good starting point.
 
 #### Docker Pull Secret
-In order to pull images from private repositories, kubernetes requires a secret with credentials.
-The helmfile could release such a secret, but it's better to create it using terraform.
+To pull images from private repositories, kubernetes requires a secret with credentials.
+The helmfile could release such a secret, but it's better to create it using terraform. The secret requires user, password, email - see terraform section.
+The name should be the same as the secret name in the helmfile.yaml.gotmpl file.
+The secret should be created in the namespace where the cluster is deployed.
 
 #### Helm Repository
 See `references/volt-helm-release.md` for information how to configure helm repository.
@@ -193,7 +196,7 @@ Mind that prometheus and grafana require additional cpu and memory resources.
 Monitoring has to be released first.
 
 ### Step 5: Terraform resources
-Terraform should define a frame for deployment. 
+Terraform should define all cloud resources required for deployment. 
 
 #### Questions to ask
 **Ask a user the following questions:**
@@ -208,15 +211,16 @@ Terraform should define a frame for deployment.
 - what is the name of the docker pull secret (default `dockerio-registry`) – user should provide additional email, user, password – those should be saved in terraform.tfvars file
 Answer to those questions will drive values in variables.tf file.
 
-Terraform resources are created in the root project directory under 'k8s/terraform' directory.
-The terraform directory should contain the 
+#### Files and directories
+Terraform resources are created in the root project directory under the 'k8s / terraform' directory.
+The terraform directory must contain the 
 - .gitignore file, ignoring at least the following files:
   ```text
-  terraform/*.tfvars
-  terraform/.terraform
-  terraform/terraform.plan
-  terraform/terraform.tfstate
-  terraform/terraform.tfstate.backup
+  *.tfvars
+  .terraform
+  terraform.plan
+  terraform.tfstate
+  terraform.tfstate.backup
   ```
 - README.md file with instructions on how to run terraform
 - variables.tf file
@@ -229,7 +233,7 @@ The terraform directory should contain the
 - release.tf file with helmfile execution, helmfile should always be executed by terraform with specific environment variables. The `helmfile apply` must be executed, and it will figure out whether the state has changed or not. This file should include any additional post-create actions once helmfile has finished.
 
 #### Docker Pull Secret
-In namespace.tf create a secret, with a default name `dockerio-registry`. Make sure variables containe placeholders for email, user and password, that can be overridden in terraform.tfvars file.
+In namespace.tf create a secret, with a default name `dockerio-registry`. Make sure variables contains placeholders for email, user and password that can be overridden in terraform.tfvars file.
 User can choose different name for the secret. The secret name should be added to a output.tf file.
 The downstream helmfile config should use the same secret name.
 Example:
