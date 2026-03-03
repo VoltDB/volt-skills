@@ -1,6 +1,6 @@
 ---
 name: voltsp
-description: Build, troubleshoot, and test VoltSP/volt-stream pipelines and custom operators (Java DSL and YAML API), including runtime configuration/secrets interpolation and deployment via CLI or Kubernetes/Helm. Use when authoring pipeline definitions, environment configs, plugin extensions, or pipeline validation tests.
+description: Build, troubleshoot, and test VoltSP pipelines and custom operators (Java DSL and YAML API), including runtime configuration/secrets interpolation and deployment via CLI or Kubernetes/Helm. Use when authoring pipeline definitions, environment configs, plugin extensions, or pipeline validation tests.
 ---
 
 # VoltSP Pipeline Engineering
