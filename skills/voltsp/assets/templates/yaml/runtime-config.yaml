@@ -1,0 +1,8 @@
+generator:
+  tps: 100
+
+http:
+  host: "localhost"
+  port: 9990
+  connectionTimeout: 10
+  requestTimeout: 1

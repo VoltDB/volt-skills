@@ -1,0 +1,19 @@
+replicaCount: 1
+
+resources:
+  limits:
+    cpu: 2
+    memory: 4G
+  requests:
+    cpu: 2
+    memory: 4G
+
+streaming:
+  longRunning: true
+
+  pipeline:
+    className: "__PIPELINE_CLASS__"
+    configuration:
+      generator:
+        tps: 100
+    configurationSecure: { }

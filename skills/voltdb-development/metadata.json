@@ -1,0 +1,10 @@
+{
+  "name": "voltdb-development",
+  "version": "1.0.0",
+  "organization": "VoltDB",
+  "abstract": "Complete VoltDB client development skill — partitioning strategy, DDL/procedure generation, Maven project scaffolding, and integration testing.",
+  "references": [
+    "https://docs.voltactivedata.com/",
+    "https://github.com/VoltDB/volt-testcontainer"
+  ]
+}
