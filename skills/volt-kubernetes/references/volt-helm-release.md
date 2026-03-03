@@ -37,7 +37,7 @@ cluster:
       storageClass: "standard-rwo"
 
     env:
-      VOLTDB_OPTS: "-XX:+UseTransparentHugePages"
+      VOLTDB_OPTS: "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"
 
     allowRestartDuringUpdate: true
 
