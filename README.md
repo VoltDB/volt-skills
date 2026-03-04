@@ -4,9 +4,10 @@ Custom [Claude Code skills](https://claude.ai/docs/claude-code/skills) for build
 
 ## Skills
 
-| Skill | Description |
-|-------|-------------|
+| Skill | Description                                                                                                                     |
+|-------|---------------------------------------------------------------------------------------------------------------------------------|
 | [voltdb-development](skills/voltdb-development/) | Creates complete VoltDB client applications with optimized partitioning, DDL schemas, stored procedures, and integration tests. |
+| [voltdb-kubernetes](skills/volt-kubernetes/)                               | Describes steps to create deployemnt scripts as code.|
 
 ## How It Works
 
