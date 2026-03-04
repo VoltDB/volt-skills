@@ -22,8 +22,8 @@ Prefer official VoltSP documentation whenever details conflict with memory.
 3. Configure values and secrets:
 - Runtime configuration model + interpolation + secure config: read `references/configuration.md`.
 
-4. Implement extensions and tests:
-- Plugin/operator selection: read `references/plugins-catalog.md`.
+4. Implement pipeline logic and tests:
+- For list of plugins and their APIS: read `references/plugins-catalog.md`.
 - Plugin deep dives and response format: read `references/plugins.md`.
 - Test strategy (unit/in-process/Testcontainers): read `references/testing.md`.
 - E2E-backed pipeline implementation patterns: read `references/pipeline-kinds.md`.
