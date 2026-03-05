@@ -8,33 +8,36 @@ VoltDB client projects use Maven for build management. This rule defines the com
 
 ## Prerequisites
 
-Before creating a project, ensure:
-- **Docker** is installed and running (required for VoltDB testcontainer)
-- **Java 17+** is installed
-- **Maven 3.6+** is installed
-- **VoltDB Enterprise license** file is available
+Before creating a project, the skill MUST actively verify all prerequisites (see SKILL.md Step 1 and Step 2). Do not just document them — run the checks.
 
-### Verify Prerequisites
+Required infrastructure:
+- **Docker** — installed and running (required for VoltDB testcontainer)
+- **Java 17+** — installed
+- **Maven 3.6+** — installed
+- **VoltDB Enterprise license** — file path confirmed by the user
+
+### Active Prerequisite Verification
+
+The skill runs these checks at the start of every session:
 
 ```bash
 # 1. Verify Docker is running (REQUIRED - tests will fail without Docker)
-docker info
-# If Docker is not running, start it:
+docker info > /dev/null 2>&1
+# If this fails: ask user to start Docker
 # macOS: open -a Docker
 # Linux: sudo systemctl start docker
 
-# 2. Verify Java version
-java -version
+# 2. Verify Java version (must be 17+)
+java -version 2>&1
 
-# 3. Verify Maven version
-mvn -version
+# 3. Verify Maven version (must be 3.6+)
+mvn -version 2>&1
 
-# 4. Set up VoltDB license (choose one option)
-# Option A: Environment variable (recommended)
-export VOLTDB_LICENSE=/path/to/your/license.xml
-# Option B: Copy to default location
-cp /path/to/your/license.xml /tmp/voltdb-license.xml
+# 4. Verify VoltDB license file exists (path provided by user in Step 2)
+test -f "$VOLTDB_LICENSE" && echo "License found" || echo "License NOT found"
 ```
+
+**IMPORTANT:** If any prerequisite fails, stop and ask the user to fix it before proceeding. Do not generate any project files until all prerequisites are confirmed.
 
 ## Project Directory Structure
 
@@ -42,7 +45,8 @@ cp /path/to/your/license.xml /tmp/voltdb-license.xml
 <project-name>/
 ├── pom.xml
 ├── schema/
-│   └── ddl.sql
+│   ├── ddl.sql              # Create tables, partitions, procedures
+│   └── remove_db.sql        # Drop everything in correct dependency order
 ├── src/
 │   ├── main/java/<package>/
 │   │   └── procedures/
