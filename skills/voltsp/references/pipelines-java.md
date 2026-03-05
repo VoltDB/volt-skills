@@ -42,17 +42,12 @@ public final class ExamplePipeline implements VoltPipeline {
 }
 ```
 
-## Batch semantics and cancellation
-
-- Treat every source `process(batchId, ...)` call as one batch.
-- Keep source and sink behavior idempotent where possible.
-- Stop long-running pipelines explicitly via `context.execution().cancel()` when business conditions require it.
-
 ## Error routing and alternate sinks
 
 - Configure global handling with `stream.onError().setExceptionHandler(...)`.
-- Route failed records to named sinks with `context.execution().emit("sinkName", record)`.
-- Expect commit and retry behavior around sink interactions; asynchronous commits can use `nextCommitResult()`.
+- Add named sinks with `stream.onError().addNamedSink("sinkName", configurator)`.
+- Route records to named sinks with `context.execution().emit("sinkName", record)`.
+- Asynchronous commits can use `nextCommitResult()`.
 - Tune async commit timeout with `voltsp.commit.async.timeout.ms` when default timeout is too strict for downstream latency.
 
 ## Configuration boundary
@@ -63,10 +58,3 @@ public final class ExamplePipeline implements VoltPipeline {
 - If both config and Java DSL set the same property, Java DSL wins.
 
 Read `references/configuration.md` for interpolation/secrets details.
-
-## Dependencies and packaging
-
-- Keep VoltSP-provided plugin APIs with Maven scope `provided`.
-- Package pipeline code and non-provided dependencies into your app artifact.
-- Verify classpath visibility before runtime (`CP` on bare metal, mounted app JAR in containers/Helm).
-- Use the template at `assets/templates/maven/pom.xml` as a starting point.
