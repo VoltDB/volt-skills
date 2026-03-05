@@ -1,28 +1,18 @@
-# Network Source (Source)
+# Network Source
 
-## Purpose
+Ingest data over UDP or TCP from network endpoints. Supports configurable decoders and OS-level socket options.
 
-Ingest UDP/TCP records from network endpoints.
-
-Compile dependency:
-
-- org.voltdb:volt-stream-plugin-network-api
-
-## When To Use
-
-- Start pipeline ingestion from this external/input system.
-- Keep source configuration externalized via runtime config and Helm values.
-
-## When To Avoid
-
-- Avoid when a lower-complexity source already satisfies the workflow.
-- Avoid embedding environment-specific endpoints directly in Java code.
+Compile dependency: volt-stream-plugin-network-api
 
 ## Java Example
 
 ```java
-stream.consumeFromSource(
-    /* Use Network Source builder/configurator for 'network' */
+import org.voltdb.stream.plugin.network.api.NetworkSourceConfigBuilder;
+
+stream.consumeFromSource(NetworkSourceConfigBuilder.<String>builder()
+    .withAddress("0.0.0.0", 34567)
+    .withType(NetworkType.UDP)
+    .withDecoder(Decoders.toLinesDecoder())
 );
 ```
 
@@ -31,28 +21,16 @@ stream.consumeFromSource(
 ```yaml
 source:
   network:
-    # plugin-specific fields
+    type: udp
+    address: "0.0.0.0:34567"
+    decoder: "lines"
+    socketOptions:
+      SO_RCVBUF: "65536"
+      SO_TIMEOUT: "1000"
 ```
 
-## Runtime Config Keys
-
-- Pipeline-definition path: `source.network`
-- Helm auto-config path: `streaming.pipeline.configuration.source.network`
-- Use secure overlays (`--configSecure` / `configurationSecure`) for credentials.
-
-## Helm Notes
-
-- Put source settings under `streaming.pipeline.configuration.source.network`.
-- If Java code sets the same field, Java DSL value takes precedence.
-
-## Testing Checks
-
-- Confirm startup does not fail on missing required fields.
-- Validate restart behavior and duplicate-handling expectations for this source.
-- Assert expected throughput/latency under representative input rates.
-
-## Common Failures
-
-- Misconfigured required fields in `source.network`.
-- Classpath/dependency mismatch for this plugin artifact.
-- Protocol/address/decoder mismatch causes dropped or malformed records.
+## Properties
+- HostAndPort address: Server socket binding address, default 0.0.0.0, required.
+- NetworkType type: Transport protocol, UDP or TCP, required.
+- Decoder&lt;T&gt; decoder: Decoder for received data (e.g. Decoders.toLinesDecoder()), required in Java API.
+- Map&lt;String, String&gt; socketOptions: OS socket options (SO_SNDBUF, SO_RCVBUF, SO_TIMEOUT, SO_KEEPALIVE, SO_LINGER, SO_BACKLOG, TCP_NODELAY).

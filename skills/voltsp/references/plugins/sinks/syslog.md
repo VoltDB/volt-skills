@@ -1,28 +1,17 @@
-# Syslog Sink (Sink)
+# Syslog Sink
 
-## Purpose
+Forward records to remote syslog endpoints using RFC3164 format. Input type is CharSequence.
 
-Forward records to remote syslog endpoints (RFC3164 style).
-
-Compile dependency:
-
-- org.voltdb:volt-stream-plugin-syslog-api
-
-## When To Use
-
-- Deliver processed records to this external target.
-- Keep sink destinations and credentials outside pipeline code.
-
-## When To Avoid
-
-- Avoid when sink guarantees do not match your delivery semantics.
-- Avoid mixing sink-specific credentials into non-secure config files.
+Compile dependency: volt-stream-plugin-syslog-api
 
 ## Java Example
 
 ```java
-stream.terminateWithSink(
-    /* Use Syslog Sink builder/configurator for 'syslog' */
+import org.voltdb.stream.plugin.syslog.api.SyslogSinkConfigBuilder;
+
+stream.terminateWithSink(SyslogSinkConfigBuilder.builder()
+    .withAddressHost("syslog.example.com")
+    .withAddressPort(514)
 );
 ```
 
@@ -31,28 +20,18 @@ stream.terminateWithSink(
 ```yaml
 sink:
   syslog:
-    # plugin-specific fields
+    address: "syslog.example.com:514"
+    message:
+      facility: USER
+      severity: NOTICE
+      hostname: "my-host"
+      tag: "my-app"
 ```
 
-## Runtime Config Keys
-
-- Pipeline-definition path: `sink.syslog`
-- Helm auto-config path: `streaming.pipeline.configuration.sink.syslog`
-- Secure values: `--configSecure` or `streaming.pipeline.configurationSecure`
-
-## Helm Notes
-
-- Place sink settings under `streaming.pipeline.configuration.sink.syslog`.
-- Keep sink endpoint/topic/index names configurable by environment.
-
-## Testing Checks
-
-- Validate commit/retry behavior for sink failures.
-- Validate idempotency/duplicate behavior at sink boundary.
-- Assert observability signals (logs/metrics) for sink commit outcomes.
-
-## Common Failures
-
-- Missing sink-required fields.
-- Serialization/schema mismatch between record type and sink expectation.
-- Format/facility expectations differ from downstream SIEM parsing rules.
+## Properties
+- HostAndPort address: Syslog server address, default port 514, required.
+- SyslogRFC3164Message message: RFC3164 message settings.
+  - facility: Syslog facility (e.g. USER, ALERT).
+  - severity: Syslog severity (e.g. DEBUG, NOTICE).
+  - hostname: Originating hostname.
+  - tag: Application tag.

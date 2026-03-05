@@ -1,28 +1,18 @@
-# ONNX GenAI Processor (Processor)
+# ONNX GenAI Processor
 
-## Purpose
+Run generative AI inference using ONNX models with chat template support. Supports token-by-token streaming and configurable generation parameters.
 
-Run GenAI-style ONNX workflows for prompt/response transformations.
-
-Compile dependency:
-
-- org.voltdb:volt-stream-plugin-onnx-api
-
-## When To Use
-
-- Transform, enrich, or filter records between source and sink.
-- Externalize model/script/class parameters through runtime config.
-
-## When To Avoid
-
-- Avoid if a plain Java lambda/function is simpler and more maintainable.
-- Avoid embedding large scripts/models inline when they should be versioned assets.
+Compile dependency: volt-stream-plugin-onnx-api
 
 ## Java Example
 
 ```java
-stream.processWith(
-    /* Use ONNX GenAI Processor builder/configurator for 'onnx-genai' */
+import org.voltdb.stream.plugin.onnx.api.OnnxGenaiProcessorConfigBuilder;
+
+stream.processWith(OnnxGenaiProcessorConfigBuilder.builder()
+    .withModelUri("s3-models-storage://com.acme.chatmodels/phi4-mini-instruct")
+    .withChatTemplate("<|user|>\\n{input} <|end|>\\n<|assistant|>")
+    .withStreamResponse(true)
 );
 ```
 
@@ -31,28 +21,22 @@ stream.processWith(
 ```yaml
 processors:
   - onnx-genai:
-      # plugin-specific fields
+      modelUri: "s3-models-storage://com.acme.chatmodels/phi4-mini-instruct"
+      chatTemplate: "<|user|>\\n{input} <|end|>\\n<|assistant|>"
+      printDownloadProgress: true
+      streamResponse: true
+      properties:
+        max_length: "2048"
+        temperature: "0.7"
+      cache:
+        directory: "/media/"
 ```
 
-## Runtime Config Keys
-
-- Pipeline-definition path: `processors[].onnx-genai`
-- Helm auto-config path: `streaming.pipeline.configuration.processors.onnx-genai`
-- Keep secrets in secure config overlays.
-
-## Helm Notes
-
-- Keep model/script/class values configurable by environment.
-- Check CPU/memory requirements for heavy processor workloads.
-
-## Testing Checks
-
-- Unit-test transformation behavior with deterministic fixtures.
-- Add integration checks around plugin runtime requirements.
-- Verify null/filter semantics where processor intentionally drops events.
-
-## Common Failures
-
-- Invalid processor-specific field types in YAML.
-- Missing runtime dependencies for script/model execution.
-- Model/chat template/token settings exceed resource limits or produce invalid output.
+## Properties
+- VoltStreamResourceReference modelResource: Reference to a managed model resource.
+- URI modelUri: Direct URI to an ONNX GenAI model.
+- String chatTemplate: Chat template with {input} placeholder for prompt formatting.
+- Boolean streamResponse: Enable token-by-token streaming output.
+- Boolean printDownloadProgress: Show download progress when fetching remote models.
+- Map&lt;String, String&gt; properties: Model-specific generation parameters (max_length, temperature, etc.).
+- FileCacheConfig cache: Local file cache configuration for remote models (directory).

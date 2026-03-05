@@ -1,28 +1,20 @@
-# Kafka Source (Source)
+# Kafka Source
 
-## Purpose
+Consume records from Kafka topics with consumer group and offset management.
 
-Consume records from Kafka topics with group/offset controls.
-
-Compile dependency:
-
-- org.voltdb:volt-stream-plugin-kafka-api
-
-## When To Use
-
-- Start pipeline ingestion from this external/input system.
-- Keep source configuration externalized via runtime config and Helm values.
-
-## When To Avoid
-
-- Avoid when a lower-complexity source already satisfies the workflow.
-- Avoid embedding environment-specific endpoints directly in Java code.
+Compile dependency: volt-stream-plugin-kafka-api
 
 ## Java Example
 
 ```java
-stream.consumeFromSource(
-    /* Use Kafka Source builder/configurator for 'kafka' */
+import org.voltdb.stream.plugin.kafka.api.KafkaSourceConfigBuilder;
+
+stream.consumeFromSource(KafkaSourceConfigBuilder.<String>builder()
+    .withGroupId("my-group")
+    .withTopicNames("topicA", "topicB")
+    .withBootstrapServers("serverA:9092", "serverB:9092")
+    .withStartingOffset(KafkaStartingOffset.EARLIEST)
+    .withPollTimeout(Duration.ofMillis(250))
 );
 ```
 
@@ -31,28 +23,32 @@ stream.consumeFromSource(
 ```yaml
 source:
   kafka:
-    # plugin-specific fields
+    groupId: "my-group"
+    bootstrapServers:
+      - "serverA:9092"
+      - "serverB:9092"
+    topicNames:
+      - "topicA"
+      - "topicB"
+    startingOffset: "EARLIEST"
+    pollTimeout: "PT0.25S"
+    maxCommitTimeout: "PT10S"
+    maxCommitRetries: 3
+    properties:
+      max.poll.interval.ms: "300000"
 ```
 
-## Runtime Config Keys
-
-- Pipeline-definition path: `source.kafka`
-- Helm auto-config path: `streaming.pipeline.configuration.source.kafka`
-- Use secure overlays (`--configSecure` / `configurationSecure`) for credentials.
-
-## Helm Notes
-
-- Put source settings under `streaming.pipeline.configuration.source.kafka`.
-- If Java code sets the same field, Java DSL value takes precedence.
-
-## Testing Checks
-
-- Confirm startup does not fail on missing required fields.
-- Validate restart behavior and duplicate-handling expectations for this source.
-- Assert expected throughput/latency under representative input rates.
-
-## Common Failures
-
-- Misconfigured required fields in `source.kafka`.
-- Classpath/dependency mismatch for this plugin artifact.
-- Deserializer, topic, or group settings do not match actual Kafka data layout.
+## Properties
+- List&lt;String&gt; bootstrapServers: Kafka broker addresses, required.
+- Set&lt;String&gt; topicNames: Topics to subscribe to, required.
+- String groupId: Consumer group identifier, required.
+- KafkaStartingOffset startingOffset: EARLIEST, LATEST, or NONE, default EARLIEST.
+- Duration pollTimeout: Max time to block the receiving thread per poll, default 1s.
+- Duration maxCommitTimeout: Timeout for commit retries, default 10s.
+- int maxCommitRetries: Max retries for committing offsets, default 3.
+- int maxPollRecords: Max records returned per poll, default 10000.
+- Class keyDeserializer: Key deserializer class, default ByteBufferDeserializer.
+- Class valueDeserializer: Value deserializer class, default ByteBufferDeserializer.
+- Map&lt;String, String&gt; properties: Additional Kafka consumer properties.
+- SslConfig ssl: SSL/TLS configuration.
+- String schemaRegistryUrl: Schema registry URL for Avro/Protobuf deserialization.

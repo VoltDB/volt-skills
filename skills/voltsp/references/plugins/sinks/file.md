@@ -1,29 +1,19 @@
-# File Sink (Sink)
+# File Sink
 
-## Purpose
+A sink that writes streamed data items to a file within a specified directory.
+Each instance creates a new file with a unique name in the designated directory.
+Data items are encoded into bytes and written to the file, each separated by a specified line terminator.
 
-Persist records into files for offline inspection and batch handoff.
-
-Compile dependency:
-
-- built-in (volt-stream-connectors-api)
-
-## When To Use
-
-- Deliver processed records to this external target.
-- Keep sink destinations and credentials outside pipeline code.
-
-## When To Avoid
-
-- Avoid when sink guarantees do not match your delivery semantics.
-- Avoid mixing sink-specific credentials into non-secure config files.
+Compile dependency: volt-stream-connectors-api
 
 ## Java Example
 
+Creates a sink that writes data items to files in a specified directory.
+
 ```java
-stream.terminateWithSink(
-    /* Use File Sink builder/configurator for 'file' */
-);
+import org.voltdb.stream.api.Sinks;
+
+stream.terminateWithSink(Sinks.directory(...));
 ```
 
 ## YAML Example
@@ -31,28 +21,10 @@ stream.terminateWithSink(
 ```yaml
 sink:
   file:
-    # plugin-specific fields
+    dirPath: "/path/to/output/directory"
 ```
 
-## Runtime Config Keys
-
-- Pipeline-definition path: `sink.file`
-- Helm auto-config path: `streaming.pipeline.configuration.sink.file`
-- Secure values: `--configSecure` or `streaming.pipeline.configurationSecure`
-
-## Helm Notes
-
-- Place sink settings under `streaming.pipeline.configuration.sink.file`.
-- Keep sink endpoint/topic/index names configurable by environment.
-
-## Testing Checks
-
-- Validate commit/retry behavior for sink failures.
-- Validate idempotency/duplicate behavior at sink boundary.
-- Assert observability signals (logs/metrics) for sink commit outcomes.
-
-## Common Failures
-
-- Missing sink-required fields.
-- Serialization/schema mismatch between record type and sink expectation.
-- File contention/rotation assumptions break under worker parallelism.
+## Properties
+- String dirPath: Path to the output directory, required.
+- String delimiter: Event delimiter that will be appended to the file between writing consecutive events.
+- Function<T, byte[]> encoder: Code that converts incoming elements to bytes for writing into the file.

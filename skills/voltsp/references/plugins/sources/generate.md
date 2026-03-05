@@ -1,58 +1,31 @@
-# Generator Source (Source)
+# Generator Source
 
-## Purpose
+Generate synthetic data from a supplier function for performance testing and demos. Supports rate-limited generation.
 
-Generate synthetic traffic at configured rates for performance or demo flows.
-
-Compile dependency:
-
-- built-in (volt-stream-connectors-api)
-
-## When To Use
-
-- Start pipeline ingestion from this external/input system.
-- Keep source configuration externalized via runtime config and Helm values.
-
-## When To Avoid
-
-- Avoid when a lower-complexity source already satisfies the workflow.
-- Avoid embedding environment-specific endpoints directly in Java code.
+Compile dependency: volt-stream-connectors-api
 
 ## Java Example
 
+Generate records as fast as possible:
+
 ```java
-stream.consumeFromSource(
-    /* Use Generator Source builder/configurator for 'generate' */
-);
+import org.voltdb.stream.api.Sources;
+
+stream.consumeFromSource(Sources.generate(() -> "event-" + System.nanoTime()));
 ```
 
-## YAML Example
+Generate records at a fixed rate (transactions per second):
 
-```yaml
-source:
-  generate:
-    # plugin-specific fields
+```java
+import org.voltdb.stream.api.Sources;
+
+stream.consumeFromSource(Sources.generateAtRate(1000.0, () -> "event-" + System.nanoTime()));
 ```
 
-## Runtime Config Keys
+Generate records at a fixed rate with a counter:
 
-- Pipeline-definition path: `source.generate`
-- Helm auto-config path: `streaming.pipeline.configuration.source.generate`
-- Use secure overlays (`--configSecure` / `configurationSecure`) for credentials.
+```java
+import org.voltdb.stream.api.Sources;
 
-## Helm Notes
-
-- Put source settings under `streaming.pipeline.configuration.source.generate`.
-- If Java code sets the same field, Java DSL value takes precedence.
-
-## Testing Checks
-
-- Confirm startup does not fail on missing required fields.
-- Validate restart behavior and duplicate-handling expectations for this source.
-- Assert expected throughput/latency under representative input rates.
-
-## Common Failures
-
-- Misconfigured required fields in `source.generate`.
-- Classpath/dependency mismatch for this plugin artifact.
-- Configured rate is too high for downstream capacity, causing backpressure.
+stream.consumeFromSource(Sources.generateAtRate(1000.0, counter -> "event-" + counter));
+```

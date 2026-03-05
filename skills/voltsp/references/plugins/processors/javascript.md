@@ -1,28 +1,20 @@
-# JavaScript Processor (Processor)
+# JavaScript Processor
 
-## Purpose
+Run JavaScript transformations and filters inline in the pipeline using GraalVM JavaScript engine.
 
-Run JavaScript transformations/filters inline in the pipeline.
-
-Compile dependency:
-
-- org.voltdb:volt-stream-plugin-javascript-api
-
-## When To Use
-
-- Transform, enrich, or filter records between source and sink.
-- Externalize model/script/class parameters through runtime config.
-
-## When To Avoid
-
-- Avoid if a plain Java lambda/function is simpler and more maintainable.
-- Avoid embedding large scripts/models inline when they should be versioned assets.
+Compile dependency: volt-stream-plugin-javascript-api
 
 ## Java Example
 
 ```java
-stream.processWith(
-    /* Use JavaScript Processor builder/configurator for 'javascript' */
+import org.voltdb.stream.plugin.javascript.api.JavaScriptProcessorConfigBuilder;
+
+stream.processWith(JavaScriptProcessorConfigBuilder.builder()
+    .withScript("""
+        function process(input) {
+            return input.toUpperCase();
+        }
+        """)
 );
 ```
 
@@ -31,28 +23,23 @@ stream.processWith(
 ```yaml
 processors:
   - javascript:
-      # plugin-specific fields
+      script: |
+        function process(input) {
+          if (typeof input === 'string') {
+            return input.toUpperCase();
+          }
+          return input;
+        }
 ```
 
-## Runtime Config Keys
+Or load from a URI:
 
-- Pipeline-definition path: `processors[].javascript`
-- Helm auto-config path: `streaming.pipeline.configuration.processors.javascript`
-- Keep secrets in secure config overlays.
+```yaml
+processors:
+  - javascript:
+      scriptUrl: "file:///path/to/transform.js"
+```
 
-## Helm Notes
-
-- Keep model/script/class values configurable by environment.
-- Check CPU/memory requirements for heavy processor workloads.
-
-## Testing Checks
-
-- Unit-test transformation behavior with deterministic fixtures.
-- Add integration checks around plugin runtime requirements.
-- Verify null/filter semantics where processor intentionally drops events.
-
-## Common Failures
-
-- Invalid processor-specific field types in YAML.
-- Missing runtime dependencies for script/model execution.
-- Script runtime errors or expensive script logic cause instability.
+## Properties
+- String script: JavaScript code to execute.
+- URI scriptUrl: URL to a JavaScript file.
