@@ -236,8 +236,8 @@ public class IntegrationTestBase {
                 + "  Resolved path: " + file.getAbsolutePath() + "\n"
                 + "  But this file does not exist.\n\n"
                 + "Fix options:\n"
-                + "  1. Correct the path:  export VOLTDB_LICENSE=/actual/path/to/license.xml\n"
-                + "  2. Copy your license: cp /path/to/license.xml " + file.getAbsolutePath() + "\n"
+                + "  1. Correct the path:  export VOLTDB_LICENSE=/actual/path/to/voltdb-license.xml\n"
+                + "  2. Copy your license: cp /path/to/voltdb-license.xml " + file.getAbsolutePath() + "\n"
             );
         }
 
@@ -256,8 +256,8 @@ public class IntegrationTestBase {
             + "    - VOLTDB_LICENSE env var: (not set)\n"
             + "    - Default location: " + defaultPath + " (not found)\n\n"
             + "Fix options:\n"
-            + "  1. Set environment variable:  export VOLTDB_LICENSE=/path/to/license.xml\n"
-            + "  2. Copy to default location:  cp /path/to/license.xml " + defaultPath + "\n"
+            + "  1. Set environment variable:  export VOLTDB_LICENSE=/path/to/voltdb-license.xml\n"
+            + "  2. Copy to default location:  cp /path/to/voltdb-license.xml " + defaultPath + "\n"
         );
     }
 }

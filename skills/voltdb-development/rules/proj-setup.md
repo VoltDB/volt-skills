@@ -204,8 +204,8 @@ docker info
 # If not running: macOS: open -a Docker | Linux: sudo systemctl start docker
 
 # 2. SET UP VOLTDB LICENSE (if not already done)
-export VOLTDB_LICENSE=/path/to/your/license.xml
-# OR: cp /path/to/license.xml /tmp/voltdb-license.xml
+export VOLTDB_LICENSE=/path/to/voltdb-license.xml
+# OR: cp /path/to/voltdb-license.xml /tmp/voltdb-license.xml
 
 # 3. NAVIGATE TO PROJECT DIRECTORY
 cd <project-name>
