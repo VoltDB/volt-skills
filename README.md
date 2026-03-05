@@ -13,10 +13,12 @@ Custom [Claude Code skills](https://claude.ai/docs/claude-code/skills) for build
 
 The `voltdb-development` skill provides a guided workflow that generates a complete, buildable VoltDB client application:
 
-1. **Asks 3 questions** — application name, output directory, and data model
-2. **Analyzes partitioning** — recommends partition columns, co-location groups, and lookup tables
-3. **Generates everything** — Maven project, DDL schema, stored procedures, integration tests, and README
-4. **Builds and tests** — runs `mvn verify` to compile, start a VoltDB testcontainer, and run integration tests
+1. **Verifies prerequisites** — checks Docker, Java, Maven are available
+2. **Asks for license location** — confirms VoltDB Enterprise license file path
+3. **Asks 3 questions** — application name, output directory, and data model
+4. **Analyzes partitioning** — recommends partition columns, co-location groups, and lookup tables
+5. **Generates everything** — Maven project, DDL schema (`ddl.sql` + `remove_db.sql`), stored procedures, integration tests, and README
+6. **Builds and tests** — runs `mvn verify` to compile, start a VoltDB testcontainer, and run integration tests
 
 ## Repository Structure
 
@@ -24,27 +26,22 @@ The `voltdb-development` skill provides a guided workflow that generates a compl
 volt-skills/
 ├── skills/
 │   └── voltdb-development/
-│       ├── SKILL.md              # Trigger conditions + guided workflow
-│       ├── AGENTS.md             # Compiled rules (generated)
-│       ├── metadata.json         # Version and references
-│       ├── rules/                # Atomic rule files
-│       │   ├── _sections.md      # Category definitions
-│       │   ├── _template.md      # Rule authoring template
-│       │   ├── part-*.md         # Partitioning strategy rules
-│       │   ├── ddl-*.md          # DDL and procedure templates
-│       │   ├── proj-*.md         # Project setup rules
-│       │   ├── test-*.md         # Integration testing rules
-│       │   └── workflow-*.md     # Workflow templates
-│       ├── scripts/
-│       │   └── build.sh          # Compiles rules/ → AGENTS.md
-│       └── README.md             # Skill-level documentation
+│       ├── SKILL.md              # Skill entry point — workflow + rule references
+│       └── rules/                # Rule files (read on demand by the LLM)
+│           ├── _sections.md      # Category definitions
+│           ├── _template.md      # Rule authoring template
+│           ├── part-*.md         # Partitioning strategy rules
+│           ├── ddl-*.md          # DDL and procedure templates
+│           ├── proj-*.md         # Project setup rules
+│           ├── test-*.md         # Integration testing rules
+│           └── workflow-*.md     # Workflow templates
 ├── LICENSE
 └── README.md
 ```
 
 ## What is a Skill?
 
-A skill is a Markdown file (`SKILL.md`) with YAML frontmatter that teaches Claude Code how to perform a specific task. The `voltdb-development` skill uses the **rules pattern** — a lightweight `SKILL.md` router with atomic rule files in `rules/` compiled into a flat `AGENTS.md` via a build script.
+A skill is a Markdown file (`SKILL.md`) with YAML frontmatter that teaches Claude Code how to perform a specific task. It follows the [Agent Skills open standard](https://agentskills.io). The `voltdb-development` skill uses **progressive disclosure** — `SKILL.md` is the entry point and references individual rule files in `rules/` that the LLM reads on demand as each workflow phase requires them.
 
 ## Installation
 
@@ -83,19 +80,10 @@ Generated projects require:
 - **Maven 3.6+**
 - **VoltDB Enterprise license** file
 
-## Building AGENTS.md
-
-After modifying any rule file in `rules/`, recompile `AGENTS.md`:
-
-```bash
-./skills/voltdb-development/scripts/build.sh
-```
-
 ## Contributing Rules
 
 1. Copy `rules/_template.md` as a starting point
 2. Name the file with the appropriate prefix (`part-`, `ddl-`, `proj-`, `test-`, `workflow-`)
-3. Run `./scripts/build.sh` to recompile `AGENTS.md`
 
 See `rules/_sections.md` for category definitions and priority order.
 
