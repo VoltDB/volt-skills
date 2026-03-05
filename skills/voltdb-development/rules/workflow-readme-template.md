@@ -70,7 +70,9 @@ mvn verify
 [project-name]/
 ├── pom.xml
 ├── README.md
-├── schema/ddl.sql
+├── schema/
+│   ├── ddl.sql              # Create tables, partitions, procedures
+│   └── remove_db.sql        # Drop everything (for iteration/cleanup)
 ├── src/main/java/[package]/procedures/
 │   ├── [Procedure1].java
 │   └── ...
@@ -79,6 +81,11 @@ mvn verify
     ├── TestDataGenerator.java
     └── [TestClass]IT.java
 \`\`\`
+
+## Schema Management
+
+- **`schema/ddl.sql`** — Creates all tables, partition declarations, and procedure registrations
+- **`schema/remove_db.sql`** — Drops everything in the correct dependency order (procedures first, then tables). Use this to clean up for a fresh start or when iterating on your schema design
 ```
 
 ## For Key-Value Projects

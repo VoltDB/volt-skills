@@ -9,6 +9,10 @@ DDL and stored procedures are always generated together — the DDL defines tabl
 ## DDL Syntax Rules
 
 - **Schema file location:** `schema/ddl.sql` (NOT in resources)
+- **PRIMARY KEY is REQUIRED on every table:** VoltDB requires a PRIMARY KEY for UPSERT operations. Every CREATE TABLE statement MUST include a PRIMARY KEY. Without it, UPSERT will fail with "Unsupported UPSERT table without primary key" error.
+  - For primary tables: `PRIMARY KEY ([PARTITION_COLUMN])`
+  - For co-located tables: `PRIMARY KEY ([PARTITION_COLUMN], [ID_COLUMN])`
+  - The partition column MUST be part of the PRIMARY KEY
 - **DEFAULT before NOT NULL:** VoltDB requires `DEFAULT` to appear before `NOT NULL` in column definitions
   - CORRECT: `status varchar(32) DEFAULT 'ACTIVE' NOT NULL`
   - WRONG: `status varchar(32) NOT NULL DEFAULT 'ACTIVE'` (DDL error: "unexpected token: DEFAULT")
@@ -71,6 +75,53 @@ PARTITION TABLE KEYVALUE ON COLUMN KEYNAME;
 
 CREATE PROCEDURE FROM CLASS [package].procedures.Put;
 CREATE PROCEDURE FROM CLASS [package].procedures.Get;
+
+END_OF_BATCH
+```
+
+## Remove DDL Template (Partitioned)
+
+The `remove_db.sql` file drops all objects created by `ddl.sql`. **Dependency order matters:**
+1. Drop procedures FIRST (they reference tables)
+2. Drop lookup tables (they reference data from other tables)
+3. Drop co-located/child tables (they depend on the partition design of the primary table)
+4. Drop the primary table LAST
+
+This is the reverse order of creation — what was created last is dropped first.
+
+```sql
+-- VoltDB Remove Schema — drops all objects in dependency order
+-- Run this to clean up the database for a fresh start
+file -inlinebatch END_OF_BATCH
+
+-- Step 1: Drop procedures first (they reference tables)
+DROP PROCEDURE [package].procedures.[ProcedureName] IF EXISTS;
+DROP PROCEDURE [package].procedures.[SearchProcedure] IF EXISTS;
+
+-- Step 2: Drop lookup tables (they hold denormalized data from other tables)
+DROP TABLE [TABLE1]_[TABLE2]_LOOKUP IF EXISTS;
+
+-- Step 3: Drop co-located/child tables
+DROP TABLE [RELATED_TABLE] IF EXISTS;
+
+-- Step 4: Drop primary table last
+DROP TABLE [TABLE_NAME] IF EXISTS;
+
+END_OF_BATCH
+```
+
+## Remove DDL Template (Key-Value)
+
+```sql
+-- VoltDB Remove Schema — drops all objects in dependency order
+file -inlinebatch END_OF_BATCH
+
+-- Drop procedures first
+DROP PROCEDURE [package].procedures.Put IF EXISTS;
+DROP PROCEDURE [package].procedures.Get IF EXISTS;
+
+-- Drop table
+DROP TABLE KEYVALUE IF EXISTS;
 
 END_OF_BATCH
 ```

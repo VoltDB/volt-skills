@@ -15,6 +15,10 @@ DDL and stored procedures are always generated together — the DDL defines tabl
 ## DDL Syntax Rules
 
 - **Schema file location:** `schema/ddl.sql` (NOT in resources)
+- **PRIMARY KEY is REQUIRED on every table:** VoltDB requires a PRIMARY KEY for UPSERT operations. Every CREATE TABLE statement MUST include a PRIMARY KEY. Without it, UPSERT will fail with "Unsupported UPSERT table without primary key" error.
+  - For primary tables: `PRIMARY KEY ([PARTITION_COLUMN])`
+  - For co-located tables: `PRIMARY KEY ([PARTITION_COLUMN], [ID_COLUMN])`
+  - The partition column MUST be part of the PRIMARY KEY
 - **DEFAULT before NOT NULL:** VoltDB requires `DEFAULT` to appear before `NOT NULL` in column definitions
   - CORRECT: `status varchar(32) DEFAULT 'ACTIVE' NOT NULL`
   - WRONG: `status varchar(32) NOT NULL DEFAULT 'ACTIVE'` (DDL error: "unexpected token: DEFAULT")
@@ -77,6 +81,53 @@ PARTITION TABLE KEYVALUE ON COLUMN KEYNAME;
 
 CREATE PROCEDURE FROM CLASS [package].procedures.Put;
 CREATE PROCEDURE FROM CLASS [package].procedures.Get;
+
+END_OF_BATCH
+```
+
+## Remove DDL Template (Partitioned)
+
+The `remove_db.sql` file drops all objects created by `ddl.sql`. **Dependency order matters:**
+1. Drop procedures FIRST (they reference tables)
+2. Drop lookup tables (they reference data from other tables)
+3. Drop co-located/child tables (they depend on the partition design of the primary table)
+4. Drop the primary table LAST
+
+This is the reverse order of creation — what was created last is dropped first.
+
+```sql
+-- VoltDB Remove Schema — drops all objects in dependency order
+-- Run this to clean up the database for a fresh start
+file -inlinebatch END_OF_BATCH
+
+-- Step 1: Drop procedures first (they reference tables)
+DROP PROCEDURE [package].procedures.[ProcedureName] IF EXISTS;
+DROP PROCEDURE [package].procedures.[SearchProcedure] IF EXISTS;
+
+-- Step 2: Drop lookup tables (they hold denormalized data from other tables)
+DROP TABLE [TABLE1]_[TABLE2]_LOOKUP IF EXISTS;
+
+-- Step 3: Drop co-located/child tables
+DROP TABLE [RELATED_TABLE] IF EXISTS;
+
+-- Step 4: Drop primary table last
+DROP TABLE [TABLE_NAME] IF EXISTS;
+
+END_OF_BATCH
+```
+
+## Remove DDL Template (Key-Value)
+
+```sql
+-- VoltDB Remove Schema — drops all objects in dependency order
+file -inlinebatch END_OF_BATCH
+
+-- Drop procedures first
+DROP PROCEDURE [package].procedures.Put IF EXISTS;
+DROP PROCEDURE [package].procedures.Get IF EXISTS;
+
+-- Drop table
+DROP TABLE KEYVALUE IF EXISTS;
 
 END_OF_BATCH
 ```
@@ -573,33 +624,36 @@ VoltDB client projects use Maven for build management. This rule defines the com
 
 ## Prerequisites
 
-Before creating a project, ensure:
-- **Docker** is installed and running (required for VoltDB testcontainer)
-- **Java 17+** is installed
-- **Maven 3.6+** is installed
-- **VoltDB Enterprise license** file is available
+Before creating a project, the skill MUST actively verify all prerequisites (see SKILL.md Step 1 and Step 2). Do not just document them — run the checks.
 
-### Verify Prerequisites
+Required infrastructure:
+- **Docker** — installed and running (required for VoltDB testcontainer)
+- **Java 17+** — installed
+- **Maven 3.6+** — installed
+- **VoltDB Enterprise license** — file path confirmed by the user
+
+### Active Prerequisite Verification
+
+The skill runs these checks at the start of every session:
 
 ```bash
 # 1. Verify Docker is running (REQUIRED - tests will fail without Docker)
-docker info
-# If Docker is not running, start it:
+docker info > /dev/null 2>&1
+# If this fails: ask user to start Docker
 # macOS: open -a Docker
 # Linux: sudo systemctl start docker
 
-# 2. Verify Java version
-java -version
+# 2. Verify Java version (must be 17+)
+java -version 2>&1
 
-# 3. Verify Maven version
-mvn -version
+# 3. Verify Maven version (must be 3.6+)
+mvn -version 2>&1
 
-# 4. Set up VoltDB license (choose one option)
-# Option A: Environment variable (recommended)
-export VOLTDB_LICENSE=/path/to/your/license.xml
-# Option B: Copy to default location
-cp /path/to/your/license.xml /tmp/voltdb-license.xml
+# 4. Verify VoltDB license file exists (path provided by user in Step 2)
+test -f "$VOLTDB_LICENSE" && echo "License found" || echo "License NOT found"
 ```
+
+**IMPORTANT:** If any prerequisite fails, stop and ask the user to fix it before proceeding. Do not generate any project files until all prerequisites are confirmed.
 
 ## Project Directory Structure
 
@@ -607,7 +661,8 @@ cp /path/to/your/license.xml /tmp/voltdb-license.xml
 <project-name>/
 ├── pom.xml
 ├── schema/
-│   └── ddl.sql
+│   ├── ddl.sql              # Create tables, partitions, procedures
+│   └── remove_db.sql        # Drop everything in correct dependency order
 ├── src/
 │   ├── main/java/<package>/
 │   │   └── procedures/
@@ -1453,7 +1508,9 @@ mvn verify
 [project-name]/
 ├── pom.xml
 ├── README.md
-├── schema/ddl.sql
+├── schema/
+│   ├── ddl.sql              # Create tables, partitions, procedures
+│   └── remove_db.sql        # Drop everything (for iteration/cleanup)
 ├── src/main/java/[package]/procedures/
 │   ├── [Procedure1].java
 │   └── ...
@@ -1462,6 +1519,11 @@ mvn verify
     ├── TestDataGenerator.java
     └── [TestClass]IT.java
 \`\`\`
+
+## Schema Management
+
+- **`schema/ddl.sql`** — Creates all tables, partition declarations, and procedure registrations
+- **`schema/remove_db.sql`** — Drops everything in the correct dependency order (procedures first, then tables). Use this to clean up for a fresh start or when iterating on your schema design
 ```
 
 ## For Key-Value Projects
