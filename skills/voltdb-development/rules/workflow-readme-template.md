@@ -55,7 +55,7 @@ A VoltDB client demonstrating **table partitioning and co-location** for [brief 
 docker info
 
 # 2. Set up license
-export VOLTDB_LICENSE=/path/to/license.xml
+export VOLTDB_LICENSE=/path/to/voltdb-license.xml
 
 # 3. Build
 mvn clean package -DskipTests

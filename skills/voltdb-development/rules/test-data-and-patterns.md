@@ -256,7 +256,7 @@ voltdb.testcontainer.shutdown=true
 docker info
 
 # 2. SET UP VOLTDB LICENSE (if not already done)
-export VOLTDB_LICENSE=/path/to/your/license.xml
+export VOLTDB_LICENSE=/path/to/voltdb-license.xml
 
 # 3. BUILD THE PROJECT (compile and package, needed for procedure JARs)
 mvn clean package -DskipTests

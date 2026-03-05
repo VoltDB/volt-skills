@@ -1,6 +1,12 @@
 ---
 name: voltdb-development
 description: Creates complete VoltDB client applications with optimized table partitioning, DDL schemas, stored procedures, and integration tests. Use when user wants to create a VoltDB client, connect to VoltDB, create VoltDB schemas, write VoltDB stored procedures, or write VoltDB integration tests.
+metadata:
+  version: "1.0.0"
+  organization: VoltDB
+  references:
+    - https://docs.voltactivedata.com/
+    - https://github.com/VoltDB/volt-testcontainer
 ---
 
 # VoltDB Development
@@ -9,15 +15,15 @@ This skill creates complete VoltDB client applications with optimized partitioni
 
 ## Rules
 
-Detailed rules are compiled into `AGENTS.md` from the `rules/` directory. Consult `AGENTS.md` for all templates, code examples, and partitioning guidance.
+Rules are organized in the `rules/` directory. Read only the rule files needed for the current phase — do NOT read all rules upfront.
 
-| Priority | Category | Impact | Prefix | Key Rules |
-|----------|----------|--------|--------|-----------|
-| 1 | Partitioning Strategy | HIGH | `part-` | Partition column selection, co-location, lookup tables, 6 critical rules |
-| 2 | DDL & Stored Procedures | HIGH | `ddl-` | DDL syntax, schema templates, all procedure templates |
-| 3 | Project Setup | MEDIUM | `proj-` | Maven structure, pom.xml, dependencies, build instructions |
-| 4 | Integration Testing | MEDIUM | `test-` | IntegrationTestBase, TestDataGenerator, IT test patterns |
-| 5 | Workflow & Templates | MEDIUM | `workflow-` | README.md generation template |
+| Priority | Category | Impact | Rule Files |
+|----------|----------|--------|------------|
+| 1 | Partitioning Strategy | HIGH | [rules/part-critical-rules.md](rules/part-critical-rules.md), [rules/part-choose-column.md](rules/part-choose-column.md), [rules/part-colocation.md](rules/part-colocation.md), [rules/part-lookup-tables.md](rules/part-lookup-tables.md) |
+| 2 | DDL & Stored Procedures | HIGH | [rules/ddl-procedures.md](rules/ddl-procedures.md) |
+| 3 | Project Setup | MEDIUM | [rules/proj-setup.md](rules/proj-setup.md) |
+| 4 | Integration Testing | MEDIUM | [rules/test-base-class.md](rules/test-base-class.md), [rules/test-data-and-patterns.md](rules/test-data-and-patterns.md) |
+| 5 | Workflow & Templates | MEDIUM | [rules/workflow-readme-template.md](rules/workflow-readme-template.md) |
 
 ## Workflow
 
@@ -113,12 +119,12 @@ If user selects "Describe custom tables", ask them to describe their tables in a
 
 ### Step 6: Analyze and Generate
 
-Apply the rules in `AGENTS.md` to complete the following phases:
-
 **Phase 1 — Partitioning Analysis** (skip for Key-Value):
-1. Analyze the data model using `part-*` rules
-2. Recommend partition column, co-location groups, lookup tables, and procedure types
-3. Present strategy for user confirmation using `AskUserQuestion`:
+1. Read [rules/part-critical-rules.md](rules/part-critical-rules.md) and [rules/part-choose-column.md](rules/part-choose-column.md)
+2. If co-location is needed, read [rules/part-colocation.md](rules/part-colocation.md)
+3. If cross-domain queries exist, read [rules/part-lookup-tables.md](rules/part-lookup-tables.md)
+4. Recommend partition column, co-location groups, lookup tables, and procedure types
+5. Present strategy for user confirmation using `AskUserQuestion`:
    - **question:** "Does this partitioning strategy work for you? [strategy summary]"
    - **header:** "Strategy"
    - **options:**
@@ -127,14 +133,15 @@ Apply the rules in `AGENTS.md` to complete the following phases:
      - `Explain more` - Tell me more about the trade-offs
 
 **Phase 2 — Code Generation:**
-1. Create Maven project structure (`proj-setup` rules)
-2. Generate `schema/ddl.sql` with partition declarations (`ddl-procedures` rules)
-3. Generate `schema/remove_db.sql` with DROP statements in correct dependency order (`ddl-procedures` rules)
-4. Generate stored procedures under `src/main/java/[package]/procedures/` (`ddl-procedures` rules)
-5. Generate `IntegrationTestBase.java` (`test-base-class` rules)
-6. Generate `TestDataGenerator.java` and `*IT.java` (`test-data-and-patterns` rules)
-7. Generate `test.properties` with testcontainer mode, shutdown enabled, and the confirmed license path from Step 2
-8. Generate project `README.md` (`workflow-readme-template` rules)
+1. Read [rules/proj-setup.md](rules/proj-setup.md) and create Maven project structure
+2. Read [rules/ddl-procedures.md](rules/ddl-procedures.md) and generate:
+   - `schema/ddl.sql` with partition declarations
+   - `schema/remove_db.sql` with DROP statements in correct dependency order
+   - Stored procedures under `src/main/java/[package]/procedures/`
+3. Read [rules/test-base-class.md](rules/test-base-class.md) and generate `IntegrationTestBase.java`
+4. Read [rules/test-data-and-patterns.md](rules/test-data-and-patterns.md) and generate `TestDataGenerator.java` and `*IT.java`
+5. Generate `test.properties` with testcontainer mode, shutdown enabled, and the confirmed license path from Step 2
+6. Read [rules/workflow-readme-template.md](rules/workflow-readme-template.md) and generate project `README.md`
 
 **Auto-derived defaults (no questions asked):**
 - Package name: `com.example.voltdb`
