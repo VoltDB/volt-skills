@@ -328,6 +328,7 @@ import java.util.List;
 /**
  * [AppName] VoltDB client application.
  * Demonstrates CRUD and search operations using VoltDB stored procedures.
+ * All operations use callProcedureAsync() internally for non-blocking execution.
  */
 public class [AppName]App {
 
@@ -342,34 +343,27 @@ public class [AppName]App {
     // ========================================
 
     // Generate one method per stored procedure.
-    // Each method calls client.callProcedureSync(), checks status, throws on failure.
+    // Each method calls client.callProcedureAsync(), validates via checkResponse(), and blocks with .get().
     //
     // Single-partition upsert example:
     // public void upsert[Table](long partitionKey, ...) throws Exception {
-    //     ClientResponse response = client.callProcedureSync(
-    //         "Upsert[Table]", partitionKey, ...);
-    //     if (response.getStatus() != ClientResponse.SUCCESS) {
-    //         throw new RuntimeException("Upsert[Table] failed: " + response.getStatusString());
-    //     }
+    //     client.callProcedureAsync("Upsert[Table]", partitionKey, ...)
+    //         .thenApply(response -> checkResponse("Upsert[Table]", response))
+    //         .get();
     // }
     //
     // Single-partition get example (returns VoltTable):
     // public VoltTable get[Table](long partitionKey) throws Exception {
-    //     ClientResponse response = client.callProcedureSync("Get[Table]", partitionKey);
-    //     if (response.getStatus() != ClientResponse.SUCCESS) {
-    //         throw new RuntimeException("Get[Table] failed: " + response.getStatusString());
-    //     }
-    //     return response.getResults()[0];
+    //     return client.callProcedureAsync("Get[Table]", partitionKey)
+    //         .thenApply(response -> checkResponse("Get[Table]", response).getResults()[0])
+    //         .get();
     // }
     //
     // Co-located access example (returns VoltTable[]):
     // public VoltTable[] get[Table]With[Related](long partitionKey) throws Exception {
-    //     ClientResponse response = client.callProcedureSync(
-    //         "Get[Table]With[Related]", partitionKey);
-    //     if (response.getStatus() != ClientResponse.SUCCESS) {
-    //         throw new RuntimeException("Get[Table]With[Related] failed: " + response.getStatusString());
-    //     }
-    //     return response.getResults();
+    //     return client.callProcedureAsync("Get[Table]With[Related]", partitionKey)
+    //         .thenApply(response -> checkResponse("Get[Table]With[Related]", response).getResults())
+    //         .get();
     // }
 
     // ========================================
@@ -377,12 +371,9 @@ public class [AppName]App {
     // ========================================
 
     // public VoltTable search[Table]By[Field](String value) throws Exception {
-    //     ClientResponse response = client.callProcedureSync(
-    //         "Search[Table]By[Field]", value);
-    //     if (response.getStatus() != ClientResponse.SUCCESS) {
-    //         throw new RuntimeException("Search[Table]By[Field] failed: " + response.getStatusString());
-    //     }
-    //     return response.getResults()[0];
+    //     return client.callProcedureAsync("Search[Table]By[Field]", value)
+    //         .thenApply(response -> checkResponse("Search[Table]By[Field]", response).getResults()[0])
+    //         .get();
     // }
 
     // ========================================
@@ -390,10 +381,22 @@ public class [AppName]App {
     // ========================================
 
     public void deleteAllData() throws Exception {
-        // Delete in child-first order (reverse of creation)
-        client.callProcedureSync("@AdHoc", "DELETE FROM [CHILD_TABLE];");
-        client.callProcedureSync("@AdHoc", "DELETE FROM [PRIMARY_TABLE];");
+        // Delete in child-first order (reverse of creation), chained with thenCompose
+        client.callProcedureAsync("@AdHoc", "DELETE FROM [CHILD_TABLE];")
+            .thenCompose(r -> client.callProcedureAsync("@AdHoc", "DELETE FROM [PRIMARY_TABLE];"))
+            .get();
         System.out.println("All data deleted.");
+    }
+
+    // ========================================
+    // Internal
+    // ========================================
+
+    private static ClientResponse checkResponse(String procName, ClientResponse response) {
+        if (response.getStatus() != ClientResponse.SUCCESS) {
+            throw new RuntimeException(procName + " failed: " + response.getStatusString());
+        }
+        return response;
     }
 
     // ========================================
