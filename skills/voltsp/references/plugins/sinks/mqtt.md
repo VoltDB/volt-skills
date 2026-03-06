@@ -1,28 +1,18 @@
-# MQTT Sink (Sink)
+# MQTT Sink
 
-## Purpose
+Publish events to MQTT topics. Input type is MqttPublishMessage containing topic, QoS level, payload, and message properties. Supports WebSocket transport, OAuth, and TLS.
 
-Publish events to MQTT topics.
-
-Compile dependency:
-
-- org.voltdb:volt-stream-plugin-mqtt-api
-
-## When To Use
-
-- Deliver processed records to this external target.
-- Keep sink destinations and credentials outside pipeline code.
-
-## When To Avoid
-
-- Avoid when sink guarantees do not match your delivery semantics.
-- Avoid mixing sink-specific credentials into non-secure config files.
+Compile dependency: volt-stream-plugin-mqtt-api
 
 ## Java Example
 
 ```java
-stream.terminateWithSink(
-    /* Use MQTT Sink builder/configurator for 'mqtt' */
+import org.voltdb.stream.plugin.mqtt.api.MqttSinkConfigBuilder;
+
+stream.terminateWithSink(MqttSinkConfigBuilder.builder()
+    .withAddressHost("mqtt.example.com")
+    .withAddressPort(1883)
+    .withIdentifier("my-publisher")
 );
 ```
 
@@ -31,28 +21,22 @@ stream.terminateWithSink(
 ```yaml
 sink:
   mqtt:
-    # plugin-specific fields
+    address: "mqtt.example.com:1883"
+    identifier: "my-publisher"
+    auth:
+      username: "admin"
+      password: "admin"
+    websocket:
+      subpath: /topic
 ```
 
-## Runtime Config Keys
-
-- Pipeline-definition path: `sink.mqtt`
-- Helm auto-config path: `streaming.pipeline.configuration.sink.mqtt`
-- Secure values: `--configSecure` or `streaming.pipeline.configurationSecure`
-
-## Helm Notes
-
-- Place sink settings under `streaming.pipeline.configuration.sink.mqtt`.
-- Keep sink endpoint/topic/index names configurable by environment.
-
-## Testing Checks
-
-- Validate commit/retry behavior for sink failures.
-- Validate idempotency/duplicate behavior at sink boundary.
-- Assert observability signals (logs/metrics) for sink commit outcomes.
-
-## Common Failures
-
-- Missing sink-required fields.
-- Serialization/schema mismatch between record type and sink expectation.
-- Broker auth/TLS/QoS settings mismatch operational requirements.
+## Properties
+- String identifier: MQTT client identifier, auto-generated if not set.
+- HostAndPort address: MQTT broker address, default port 1883.
+- MqttWebSocketConfig websocket: WebSocket transport configuration (subpath).
+- SslConfig ssl: SSL/TLS configuration.
+- Credentials auth: Username/password authentication.
+- MqttConnectConfig connect: Additional MQTT connect options.
+- MqttReconnectConfig reconnect: Automatic reconnect with exponential backoff.
+- OAuthConfigurator oauth: OAuth configuration.
+- RetryConfiguration retry: Retry configuration for failed publishes.

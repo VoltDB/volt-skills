@@ -2,13 +2,6 @@
 
 Use this when creating a Java DSL pipeline project that compiles against VoltSP artifacts published to Maven Central.
 
-## Goal
-
-Set up Maven so:
-- pipeline code compiles locally,
-- runtime-provided VoltSP classes are not bundled unnecessarily,
-- tests can run with VoltSP test tooling.
-
 ## Required dependencies
 
 For a minimal Java pipeline project, include:
@@ -30,14 +23,6 @@ Test stack:
 - `org.voltdb:volt-stream-api-test` (`test`)
 - JUnit + AssertJ (`test`)
 
-## Scope rules
-
-- `provided`: class is needed for compile, supplied by runtime image/platform.
-- `compile`: class must be packaged with your app artifact.
-- `test`: only for tests.
-
-If your runtime does not provide a dependency, move it from `provided` to `compile` and package it.
-
 ## Template POM
 
 Use template:
@@ -49,14 +34,6 @@ Copy it as the project `pom.xml`, then update:
 - `version`
 - `volt.stream.version`
 - optional dependency blocks based on chosen plugins
-
-## Validation commands
-
-```bash
-mvn -q -DskipTests compile
-mvn -q test
-mvn -q dependency:tree
-```
 
 If compilation fails with missing classes, check:
 - dependency present in `pom.xml`,

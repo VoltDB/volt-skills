@@ -1,28 +1,20 @@
-# Python Processor (Processor)
+# Python Processor
 
-## Purpose
+Execute Python-based transformation logic using GraalVM Python engine. The script must define a `process()` function.
 
-Execute Python-based transformation logic.
-
-Compile dependency:
-
-- org.voltdb:volt-stream-plugin-python-api
-
-## When To Use
-
-- Transform, enrich, or filter records between source and sink.
-- Externalize model/script/class parameters through runtime config.
-
-## When To Avoid
-
-- Avoid if a plain Java lambda/function is simpler and more maintainable.
-- Avoid embedding large scripts/models inline when they should be versioned assets.
+Compile dependency: volt-stream-plugin-python-api
 
 ## Java Example
 
 ```java
-stream.processWith(
-    /* Use Python Processor builder/configurator for 'python' */
+import org.voltdb.stream.plugin.python.api.PythonProcessorConfigBuilder;
+
+stream.processWith(PythonProcessorConfigBuilder.builder()
+    .withScript("""
+        def process(input):
+            return input.upper()
+        """)
+    .withTimeout(Duration.ofSeconds(2))
 );
 ```
 
@@ -31,28 +23,21 @@ stream.processWith(
 ```yaml
 processors:
   - python:
-      # plugin-specific fields
+      script: |
+        def process(input):
+            return input.upper()
+      timeout: "PT2S"
 ```
 
-## Runtime Config Keys
+Or load from a URL:
 
-- Pipeline-definition path: `processors[].python`
-- Helm auto-config path: `streaming.pipeline.configuration.processors.python`
-- Keep secrets in secure config overlays.
+```yaml
+processors:
+  - python:
+      scriptUrl: "file:///path/to/transform.py"
+```
 
-## Helm Notes
-
-- Keep model/script/class values configurable by environment.
-- Check CPU/memory requirements for heavy processor workloads.
-
-## Testing Checks
-
-- Unit-test transformation behavior with deterministic fixtures.
-- Add integration checks around plugin runtime requirements.
-- Verify null/filter semantics where processor intentionally drops events.
-
-## Common Failures
-
-- Invalid processor-specific field types in YAML.
-- Missing runtime dependencies for script/model execution.
-- Python runtime/dependency packaging mismatch at deployment time.
+## Properties
+- String script: Python code to execute (must define a `process()` function).
+- URI scriptUrl: URL to a Python script file.
+- Duration timeout: Max execution time per invocation, default 1s.

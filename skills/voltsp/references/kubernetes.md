@@ -75,9 +75,3 @@ helm install my-pipeline voltdb/volt-streams               \
   - `autoscaling.maxReplicas`
   - `autoscaling.targetCPUUtilizationPercentage`
   - `autoscaling.targetMemoryUtilizationPercentage`
-
-## Operational checks
-
-- `kubectl get pods -n <namespace>`
-- `kubectl logs <pod> -n <namespace>`
-- `kubectl describe pod <pod> -n <namespace>`

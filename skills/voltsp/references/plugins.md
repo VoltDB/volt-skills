@@ -20,17 +20,12 @@ Priority set includes dedicated docs for:
 - Sinks: `stdout`, `blackhole`, `file`, `kafka`, `network`, `elastic`, `syslog`, `mqtt`, `voltdb-procedure`, `voltdb-bulk-insert`
 - Processors: `javascript`, `java`, `python`, `voltdb-cache`, `onnx`, `onnx-genai`
 
-## Required answer shape for plugin-specific requests
+## Plugin file format
 
-For any plugin-specific response, keep this order:
+Each plugin file follows this structure:
 
-1. Purpose
-2. When to use / avoid
-3. Java example
-4. YAML example
-5. Runtime config keys
-6. Helm notes
-7. Testing checks
-8. Common failures
-
-This matches the per-plugin template and keeps answers consistent for evals.
+1. Title and description
+2. Compile dependency
+3. Java example (actual API calls)
+4. YAML example (actual config)
+5. Properties (with types, defaults, required markers)

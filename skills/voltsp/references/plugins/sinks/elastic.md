@@ -1,28 +1,18 @@
-# Elasticsearch Sink (Sink)
+# Elasticsearch Sink
 
-## Purpose
+Index records into Elasticsearch for search and analytics. Supports bulk indexing, load balancing, failover, and SSL/TLS.
 
-Index records into Elasticsearch for search and analytics.
-
-Compile dependency:
-
-- org.voltdb:volt-stream-plugin-elastic-api
-
-## When To Use
-
-- Deliver processed records to this external target.
-- Keep sink destinations and credentials outside pipeline code.
-
-## When To Avoid
-
-- Avoid when sink guarantees do not match your delivery semantics.
-- Avoid mixing sink-specific credentials into non-secure config files.
+Compile dependency: volt-stream-plugin-elastic-api
 
 ## Java Example
 
 ```java
-stream.terminateWithSink(
-    /* Use Elasticsearch Sink builder/configurator for 'elastic' */
+import org.voltdb.stream.plugin.elastic.api.ElasticSearchSinkConfiguratorBuilder;
+
+stream.terminateWithSink(ElasticSearchSinkConfiguratorBuilder.builder()
+    .withIndexName("my-index")
+    .withAddressHost("elasticsearch.example.com")
+    .withAddressPort(9200)
 );
 ```
 
@@ -31,28 +21,23 @@ stream.terminateWithSink(
 ```yaml
 sink:
   elastic:
-    # plugin-specific fields
+    indexName: "my-index"
+    address: "elasticsearch.example.com:9200"
+    auth:
+      username: "user"
+      password: "password"
+    ssl:
+      trustStoreFile: "/path/to/truststore.jks"
+      trustStorePassword: "password"
 ```
 
-## Runtime Config Keys
-
-- Pipeline-definition path: `sink.elastic`
-- Helm auto-config path: `streaming.pipeline.configuration.sink.elastic`
-- Secure values: `--configSecure` or `streaming.pipeline.configurationSecure`
-
-## Helm Notes
-
-- Place sink settings under `streaming.pipeline.configuration.sink.elastic`.
-- Keep sink endpoint/topic/index names configurable by environment.
-
-## Testing Checks
-
-- Validate commit/retry behavior for sink failures.
-- Validate idempotency/duplicate behavior at sink boundary.
-- Assert observability signals (logs/metrics) for sink commit outcomes.
-
-## Common Failures
-
-- Missing sink-required fields.
-- Serialization/schema mismatch between record type and sink expectation.
-- Index mapping conflicts or auth/TLS misconfiguration block indexing.
+## Properties
+- String indexName: Elasticsearch index name, required.
+- HostAndPort address: Elasticsearch host and port, default localhost:9200.
+- int cacheSizeBytes: Bulk request buffer size in bytes, default 5242880.
+- boolean dataStream: Whether to use Elasticsearch data streams, default false.
+- RetryConfiguration retry: Retry configuration for failed requests.
+- Credentials auth: Username/password authentication credentials.
+- SslConfig ssl: SSL/TLS configuration (trustStoreFile, trustStorePassword).
+- Map&lt;String, String&gt; requestHeaders: Additional HTTP headers for requests.
+- Map&lt;String, String&gt; requestParameters: Additional HTTP query parameters.

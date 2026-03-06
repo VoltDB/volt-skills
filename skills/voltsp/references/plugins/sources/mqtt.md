@@ -1,28 +1,20 @@
-# MQTT Source (Source)
+# MQTT Source
 
-## Purpose
+Subscribe to MQTT topics for IoT and event workloads. Supports shared subscriptions, WebSocket transport, OAuth, and TLS.
 
-Subscribe to MQTT topics for IoT/event workloads.
-
-Compile dependency:
-
-- org.voltdb:volt-stream-plugin-mqtt-api
-
-## When To Use
-
-- Start pipeline ingestion from this external/input system.
-- Keep source configuration externalized via runtime config and Helm values.
-
-## When To Avoid
-
-- Avoid when a lower-complexity source already satisfies the workflow.
-- Avoid embedding environment-specific endpoints directly in Java code.
+Compile dependency: volt-stream-plugin-mqtt-api
 
 ## Java Example
 
 ```java
-stream.consumeFromSource(
-    /* Use MQTT Source builder/configurator for 'mqtt' */
+import org.voltdb.stream.plugin.mqtt.api.MqttSourceConfigBuilder;
+
+stream.consumeFromSource(MqttSourceConfigBuilder.builder()
+    .withGroupName("group1")
+    .withTopicFilter("sensors/#")
+    .withAddressHost("mqtt.example.com")
+    .withAddressPort(1883)
+    .withQos(MqttMessageQoS.AT_LEAST_ONCE)
 );
 ```
 
@@ -31,28 +23,24 @@ stream.consumeFromSource(
 ```yaml
 source:
   mqtt:
-    # plugin-specific fields
+    address: "mqtt.example.com:1883"
+    topicFilter: "sensors/#"
+    groupName: "group1"
+    qos: "AT_LEAST_ONCE"
+    auth:
+      username: "admin"
+      password: "admin"
 ```
 
-## Runtime Config Keys
-
-- Pipeline-definition path: `source.mqtt`
-- Helm auto-config path: `streaming.pipeline.configuration.source.mqtt`
-- Use secure overlays (`--configSecure` / `configurationSecure`) for credentials.
-
-## Helm Notes
-
-- Put source settings under `streaming.pipeline.configuration.source.mqtt`.
-- If Java code sets the same field, Java DSL value takes precedence.
-
-## Testing Checks
-
-- Confirm startup does not fail on missing required fields.
-- Validate restart behavior and duplicate-handling expectations for this source.
-- Assert expected throughput/latency under representative input rates.
-
-## Common Failures
-
-- Misconfigured required fields in `source.mqtt`.
-- Classpath/dependency mismatch for this plugin artifact.
-- QoS/topic filter or broker auth mismatch prevents stable consumption.
+## Properties
+- String identifier: MQTT client identifier, auto-generated with 'voltsp-source-' prefix if not set.
+- HostAndPort address: MQTT broker address, default port 1883, required.
+- String topicFilter: Topic filter with wildcard support (e.g. "sensors/#"), required.
+- String groupName: Shared subscription group name, required.
+- MqttMessageQoS qos: Quality of Service level, default AT_LEAST_ONCE.
+- MqttWebSocketConfig websocket: WebSocket transport configuration.
+- SslConfig ssl: SSL/TLS configuration.
+- Credentials auth: Username/password authentication.
+- MqttConnectConfig connect: Additional MQTT connect options.
+- MqttReconnectConfig reconnect: Automatic reconnect with exponential backoff.
+- OAuthConfigurator oauth: OAuth configuration.

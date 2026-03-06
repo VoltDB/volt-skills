@@ -1,28 +1,17 @@
-# Kafka Sink (Sink)
+# Kafka Sink
 
-## Purpose
+Publish processed records to Kafka topics. Supports custom serializers, schema registry, and key/value/header extractors.
 
-Publish processed records to Kafka topics.
-
-Compile dependency:
-
-- org.voltdb:volt-stream-plugin-kafka-api
-
-## When To Use
-
-- Deliver processed records to this external target.
-- Keep sink destinations and credentials outside pipeline code.
-
-## When To Avoid
-
-- Avoid when sink guarantees do not match your delivery semantics.
-- Avoid mixing sink-specific credentials into non-secure config files.
+Compile dependency: volt-stream-plugin-kafka-api
 
 ## Java Example
 
 ```java
-stream.terminateWithSink(
-    /* Use Kafka Sink builder/configurator for 'kafka' */
+import org.voltdb.stream.plugin.kafka.api.KafkaSinkConfigBuilder;
+
+stream.terminateWithSink(KafkaSinkConfigBuilder.<String>builder()
+    .withBootstrapServers("kafka.example.com:9092")
+    .withTopicName("my-topic")
 );
 ```
 
@@ -31,28 +20,21 @@ stream.terminateWithSink(
 ```yaml
 sink:
   kafka:
-    # plugin-specific fields
+    topicName: "my-topic"
+    bootstrapServers: "kafka.example.com:9092"
+    schemaRegistryUrl: "http://registry.example.com"
+    properties:
+      acks: "all"
 ```
 
-## Runtime Config Keys
-
-- Pipeline-definition path: `sink.kafka`
-- Helm auto-config path: `streaming.pipeline.configuration.sink.kafka`
-- Secure values: `--configSecure` or `streaming.pipeline.configurationSecure`
-
-## Helm Notes
-
-- Place sink settings under `streaming.pipeline.configuration.sink.kafka`.
-- Keep sink endpoint/topic/index names configurable by environment.
-
-## Testing Checks
-
-- Validate commit/retry behavior for sink failures.
-- Validate idempotency/duplicate behavior at sink boundary.
-- Assert observability signals (logs/metrics) for sink commit outcomes.
-
-## Common Failures
-
-- Missing sink-required fields.
-- Serialization/schema mismatch between record type and sink expectation.
-- Serializer/topic configuration mismatches downstream contracts.
+## Properties
+- List&lt;String&gt; bootstrapServers: Kafka broker addresses, required.
+- String topicName: Target Kafka topic, required.
+- Map&lt;String, String&gt; properties: Additional Kafka producer properties.
+- SslConfig ssl: SSL/TLS configuration.
+- Class keySerializer: Key serializer class.
+- Class valueSerializer: Value serializer class.
+- Function&lt;T, Object&gt; keyExtractor: Extracts the record key from the input element.
+- Function&lt;T, Object&gt; valueExtractor: Extracts the record value from the input element.
+- Function&lt;T, Iterable&lt;Header&gt;&gt; headerExtractor: Extracts headers from the input element.
+- String schemaRegistryUrl: Schema registry URL for Avro/Protobuf serialization.

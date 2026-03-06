@@ -1,28 +1,22 @@
-# VoltDB Cache Processor (Processor)
+# VoltDB Cache Processor
 
-## Purpose
+Enrich or filter records using VoltDB-backed cache lookups. Caches VoltDB procedure responses keyed by input parameters, with configurable cache size and expiration.
 
-Enrich/filter records using VoltDB-backed cache lookups.
-
-Compile dependency:
-
-- org.voltdb:volt-stream-plugin-volt-api
-
-## When To Use
-
-- Transform, enrich, or filter records between source and sink.
-- Externalize model/script/class parameters through runtime config.
-
-## When To Avoid
-
-- Avoid if a plain Java lambda/function is simpler and more maintainable.
-- Avoid embedding large scripts/models inline when they should be versioned assets.
+Compile dependency: volt-stream-plugin-volt-api
 
 ## Java Example
 
 ```java
-stream.processWith(
-    /* Use VoltDB Cache Processor builder/configurator for 'voltdb-cache' */
+import org.voltdb.stream.plugin.volt.api.VoltProcedureCacheProcessorConfigBuilder;
+
+stream.processWith(VoltProcedureCacheProcessorConfigBuilder.builder()
+    .withVoltClientResource("primary-cluster")
+    .withProcedureName("LookupCustomer")
+    .withParamsMapper(input -> new Object[]{input.getCustomerId()})
+    .withResponseMapper((input, response) -> response.getResults()[0])
+    .withComputeFunction((input, cached) -> input.withCustomerName(cached.getString(0)))
+    .withMaximumSize(100000)
+    .withExpireAfterWrite(Duration.ofMinutes(10))
 );
 ```
 
@@ -31,28 +25,21 @@ stream.processWith(
 ```yaml
 processors:
   - voltdb-cache:
-      # plugin-specific fields
+      voltClientResource: "primary-cluster"
+      procedureName: "LookupCustomer"
+      sql: "SELECT name FROM customers WHERE id = ?"
+      maximumSize: 100000
+      expireAfterWrite: "PT10M"
 ```
 
-## Runtime Config Keys
-
-- Pipeline-definition path: `processors[].voltdb-cache`
-- Helm auto-config path: `streaming.pipeline.configuration.processors.voltdb-cache`
-- Keep secrets in secure config overlays.
-
-## Helm Notes
-
-- Keep model/script/class values configurable by environment.
-- Check CPU/memory requirements for heavy processor workloads.
-
-## Testing Checks
-
-- Unit-test transformation behavior with deterministic fixtures.
-- Add integration checks around plugin runtime requirements.
-- Verify null/filter semantics where processor intentionally drops events.
-
-## Common Failures
-
-- Invalid processor-specific field types in YAML.
-- Missing runtime dependencies for script/model execution.
-- Cache key/procedure response contract mismatch leads to bad enrichment.
+## Properties
+- VoltStreamResourceReference voltClientResource: Reference to a VoltDB client resource, required.
+- String procedureName: Stored procedure name, default "@AdHoc".
+- String sql: SQL query (used with @AdHoc procedure).
+- Function&lt;I, Object[]&gt; paramsMapper: Maps input to procedure parameters, required in Java API.
+- Function&lt;I, Object&gt; keyMapper: Custom cache key mapper (defaults to paramsMapper output).
+- VoltResponseMapperFunction responseMapper: Maps VoltDB response to cached value, required in Java API.
+- VoltCachedComputeFunction computeFunction: Computes output from input and cached value, required in Java API.
+- int maximumSize: Maximum number of cached entries, default 100000.
+- Duration expireAfterWrite: Cache entry expiration time, default 10 minutes.
+- RetryConfiguration retry: Retry configuration for failed VoltDB calls.
