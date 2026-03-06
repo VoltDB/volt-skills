@@ -28,7 +28,7 @@ git clone https://github.com/VoltDB/volt-skills.git
 cp -r volt-skills/skills/voltdb-development your-project/.claude/skills/
 ```
 
-Once installed, the agen should be able to pick it up automatically when facing a relevant task. 
+Once installed, the agent should be able to pick it up automatically when facing a relevant task. 
 
 Sometimes it is possible to nudge it, e.g. in Claude Code invoke one directly with `/skill-name`:
 
