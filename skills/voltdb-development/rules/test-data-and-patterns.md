@@ -379,7 +379,7 @@ mvn verify
 | Item | Value |
 |------|-------|
 | Client API | `db.getClient2()` returns `Client2` |
-| Procedure calls | Via `[AppName]App` methods (not raw `client.callProcedureSync`) |
+| Procedure calls | Via `[AppName]App` methods (not raw `client.callProcedureAsync`) |
 | Data loading | Via `CsvDataLoader` reading from classpath |
 | CSV location | `src/main/resources/data/` |
 | Test naming | `*IT.java` suffix (picked up by maven-failsafe-plugin) |

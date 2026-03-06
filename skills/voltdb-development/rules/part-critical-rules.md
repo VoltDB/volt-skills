@@ -17,16 +17,16 @@ VoltDB supports ONLY single-column partition keys. NO composite partition keys.
 
 ## Rule 2: Partition Key MUST Be FIRST Parameter
 
-VoltDB routes procedure calls based on the FIRST parameter. The partition key MUST be the first parameter in `run()` and in client `callProcedureSync()` calls.
+VoltDB routes procedure calls based on the FIRST parameter. The partition key MUST be the first parameter in `run()` and in client `callProcedureAsync()` calls.
 
 ```
 ✓ CORRECT:
   run(long shelterId, long petId, String name, ...)
-  callProcedureSync("UpsertPet", shelterId, petId, name, ...)
+  callProcedureAsync("UpsertPet", shelterId, petId, name, ...)
 
 ✗ WRONG (causes "Mispartitioned tuple" error!):
   run(long petId, String name, long shelterId, ...)
-  callProcedureSync("UpsertPet", petId, name, shelterId, ...)
+  callProcedureAsync("UpsertPet", petId, name, shelterId, ...)
 
 Why? VoltDB uses first param (petId=4) to route to partition,
 but data has shelterId=1 which belongs to different partition.
