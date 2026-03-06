@@ -64,28 +64,46 @@ mvn clean package -DskipTests
 mvn verify
 \`\`\`
 
+## Running the Application
+
+\`\`\`bash
+# Run against a VoltDB instance (default: localhost:21211)
+java -cp target/<project-name>-1.0.jar:target/lib/* [package].[AppName]App
+
+# Specify host and port
+java -cp target/<project-name>-1.0.jar:target/lib/* [package].[AppName]App <host> <port>
+\`\`\`
+
+The application will:
+1. Connect to VoltDB
+2. Deploy schema if not already present (via VoltDBSetup)
+3. Load sample data from CSV files (via CsvDataLoader)
+4. Exercise CRUD and search operations
+5. Clean up and disconnect
+
 ## Project Structure
 
 \`\`\`
 [project-name]/
 ├── pom.xml
 ├── README.md
-├── schema/
-│   ├── ddl.sql              # Create tables, partitions, procedures
-│   └── remove_db.sql        # Drop everything (for iteration/cleanup)
-├── src/main/java/[package]/procedures/
-│   ├── [Procedure1].java
-│   └── ...
+├── src/main/java/[package]/
+│   ├── [AppName]App.java          # Main client app with CRUD/search methods
+│   ├── VoltDBSetup.java           # Idempotent schema deployment
+│   ├── CsvDataLoader.java         # CSV data loading utility
+│   └── procedures/
+│       ├── [Procedure1].java
+│       └── ...
+├── src/main/resources/
+│   ├── ddl.sql                    # Create tables, partitions, procedures
+│   ├── remove_db.sql              # Drop everything (dependency order)
+│   └── data/
+│       ├── [primary_table].csv    # Sample data for primary entity
+│       └── [colocated_table].csv  # Sample data for co-located entity
 └── src/test/java/[package]/
     ├── IntegrationTestBase.java
-    ├── TestDataGenerator.java
     └── [TestClass]IT.java
 \`\`\`
-
-## Schema Management
-
-- **`schema/ddl.sql`** — Creates all tables, partition declarations, and procedure registrations
-- **`schema/remove_db.sql`** — Drops everything in the correct dependency order (procedures first, then tables). Use this to clean up for a fresh start or when iterating on your schema design
 ```
 
 ## For Key-Value Projects
@@ -94,4 +112,5 @@ Simplify the README by removing the partitioning strategy section and procedure 
 - Project description
 - Prerequisites
 - Build and test commands
+- Running the application
 - Project structure

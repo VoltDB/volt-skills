@@ -8,7 +8,8 @@ DDL and stored procedures are always generated together — the DDL defines tabl
 
 ## DDL Syntax Rules
 
-- **Schema file location:** `schema/ddl.sql` (NOT in resources)
+- **Schema file location:** `src/main/resources/ddl.sql` (classpath resource)
+- **Remove DDL location:** `src/main/resources/remove_db.sql` (classpath resource)
 - **PRIMARY KEY is REQUIRED on every table:** VoltDB requires a PRIMARY KEY for UPSERT operations. Every CREATE TABLE statement MUST include a PRIMARY KEY. Without it, UPSERT will fail with "Unsupported UPSERT table without primary key" error.
   - For primary tables: `PRIMARY KEY ([PARTITION_COLUMN])`
   - For co-located tables: `PRIMARY KEY ([PARTITION_COLUMN], [ID_COLUMN])`
@@ -16,12 +17,12 @@ DDL and stored procedures are always generated together — the DDL defines tabl
 - **DEFAULT before NOT NULL:** VoltDB requires `DEFAULT` to appear before `NOT NULL` in column definitions
   - CORRECT: `status varchar(32) DEFAULT 'ACTIVE' NOT NULL`
   - WRONG: `status varchar(32) NOT NULL DEFAULT 'ACTIVE'` (DDL error: "unexpected token: DEFAULT")
+- **DROP PROCEDURE IF EXISTS:** Every `CREATE PROCEDURE` must be preceded by a `DROP PROCEDURE ... IF EXISTS;` statement to make the DDL idempotent
 
 ## DDL Schema Template (Partitioned)
 
 ```sql
 -- VoltDB DDL Schema
-file -inlinebatch END_OF_BATCH
 
 -- Primary table
 CREATE TABLE [TABLE_NAME] (
@@ -50,20 +51,19 @@ CREATE TABLE [TABLE1]_[TABLE2]_LOOKUP (
 PARTITION TABLE [TABLE1]_[TABLE2]_LOOKUP ON COLUMN [PARTITION_COLUMN];
 
 -- Single-partition procedures (partition key routed)
+DROP PROCEDURE [package].procedures.[ProcedureName] IF EXISTS;
 CREATE PROCEDURE PARTITION ON TABLE [TABLE] COLUMN [PARTITION_COLUMN]
     FROM CLASS [package].procedures.[ProcedureName];
 
 -- Multi-partition procedures (searches all nodes)
+DROP PROCEDURE [package].procedures.[SearchProcedure] IF EXISTS;
 CREATE PROCEDURE FROM CLASS [package].procedures.[SearchProcedure];
-
-END_OF_BATCH
 ```
 
 ## DDL Schema Template (Key-Value)
 
 ```sql
 -- VoltDB DDL Schema
-file -inlinebatch END_OF_BATCH
 
 CREATE TABLE KEYVALUE
 (
@@ -73,15 +73,16 @@ CREATE TABLE KEYVALUE
 
 PARTITION TABLE KEYVALUE ON COLUMN KEYNAME;
 
+DROP PROCEDURE [package].procedures.Put IF EXISTS;
 CREATE PROCEDURE FROM CLASS [package].procedures.Put;
-CREATE PROCEDURE FROM CLASS [package].procedures.Get;
 
-END_OF_BATCH
+DROP PROCEDURE [package].procedures.Get IF EXISTS;
+CREATE PROCEDURE FROM CLASS [package].procedures.Get;
 ```
 
 ## Remove DDL Template (Partitioned)
 
-The `remove_db.sql` file drops all objects created by `ddl.sql`. **Dependency order matters:**
+The `remove_db.sql` file at `src/main/resources/remove_db.sql` drops all objects created by `ddl.sql`. **Dependency order matters:**
 1. Drop procedures FIRST (they reference tables)
 2. Drop lookup tables (they reference data from other tables)
 3. Drop co-located/child tables (they depend on the partition design of the primary table)
@@ -92,7 +93,6 @@ This is the reverse order of creation — what was created last is dropped first
 ```sql
 -- VoltDB Remove Schema — drops all objects in dependency order
 -- Run this to clean up the database for a fresh start
-file -inlinebatch END_OF_BATCH
 
 -- Step 1: Drop procedures first (they reference tables)
 DROP PROCEDURE [package].procedures.[ProcedureName] IF EXISTS;
@@ -106,15 +106,12 @@ DROP TABLE [RELATED_TABLE] IF EXISTS;
 
 -- Step 4: Drop primary table last
 DROP TABLE [TABLE_NAME] IF EXISTS;
-
-END_OF_BATCH
 ```
 
 ## Remove DDL Template (Key-Value)
 
 ```sql
 -- VoltDB Remove Schema — drops all objects in dependency order
-file -inlinebatch END_OF_BATCH
 
 -- Drop procedures first
 DROP PROCEDURE [package].procedures.Put IF EXISTS;
@@ -122,8 +119,6 @@ DROP PROCEDURE [package].procedures.Get IF EXISTS;
 
 -- Drop table
 DROP TABLE KEYVALUE IF EXISTS;
-
-END_OF_BATCH
 ```
 
 ## Stored Procedure Templates

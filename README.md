@@ -17,7 +17,7 @@ The `voltdb-development` skill provides a guided workflow that generates a compl
 2. **Asks for license location** — confirms VoltDB Enterprise license file path
 3. **Asks 3 questions** — application name, output directory, and data model
 4. **Analyzes partitioning** — recommends partition columns, co-location groups, and lookup tables
-5. **Generates everything** — Maven project, DDL schema (`ddl.sql` + `remove_db.sql`), stored procedures, integration tests, and README
+5. **Generates everything** — Maven project, DDL schema, stored procedures, main app class, schema deployment utility, CSV data loader, sample CSV data, integration tests, and README
 6. **Builds and tests** — runs `mvn verify` to compile, start a VoltDB testcontainer, and run integration tests
 
 ## Repository Structure

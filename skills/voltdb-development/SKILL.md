@@ -133,15 +133,19 @@ If user selects "Describe custom tables", ask them to describe their tables in a
      - `Explain more` - Tell me more about the trade-offs
 
 **Phase 2 — Code Generation:**
-1. Read [rules/proj-setup.md](rules/proj-setup.md) and create Maven project structure
-2. Read [rules/ddl-procedures.md](rules/ddl-procedures.md) and generate:
-   - `schema/ddl.sql` with partition declarations
-   - `schema/remove_db.sql` with DROP statements in correct dependency order
+1. Read [rules/proj-setup.md](rules/proj-setup.md) → create Maven project structure + `pom.xml`
+2. Read [rules/ddl-procedures.md](rules/ddl-procedures.md) → generate:
+   - `src/main/resources/ddl.sql` (with `DROP PROCEDURE IF EXISTS` pattern)
+   - `src/main/resources/remove_db.sql` (DROP in dependency order)
    - Stored procedures under `src/main/java/[package]/procedures/`
-3. Read [rules/test-base-class.md](rules/test-base-class.md) and generate `IntegrationTestBase.java`
-4. Read [rules/test-data-and-patterns.md](rules/test-data-and-patterns.md) and generate `TestDataGenerator.java` and `*IT.java`
-5. Generate `test.properties` with testcontainer mode, shutdown enabled, and the confirmed license path from Step 2
-6. Read [rules/workflow-readme-template.md](rules/workflow-readme-template.md) and generate project `README.md`
+3. Generate `[AppName]App.java` — main client app (rules/proj-setup.md template)
+4. Generate `VoltDBSetup.java` — schema deployment (rules/proj-setup.md template)
+5. Generate `CsvDataLoader.java` — CSV loading utility (rules/test-data-and-patterns.md template)
+6. Generate CSV data files in `src/main/resources/data/` (rules/test-data-and-patterns.md)
+7. Read [rules/test-base-class.md](rules/test-base-class.md) → generate `IntegrationTestBase.java`
+8. Read [rules/test-data-and-patterns.md](rules/test-data-and-patterns.md) → generate `[TestName]IT.java`
+9. Generate `test.properties` at `src/test/resources/test.properties` with testcontainer mode, shutdown enabled, and the confirmed license path from Step 2
+10. Read [rules/workflow-readme-template.md](rules/workflow-readme-template.md) → generate project `README.md`
 
 **Auto-derived defaults (no questions asked):**
 - Package name: `com.example.voltdb`
