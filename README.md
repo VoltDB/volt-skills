@@ -12,7 +12,7 @@ Custom [Claude Code skills](https://claude.ai/docs/claude-code/skills) for build
 
 ## What is a Skill?
 
-A skill is a Markdown file (`SKILL.md`) with YAML frontmatter that teaches an AI agent (like Claude Code or Codex) how to perform a specific task> It follows the [Agent Skills open standard](https://agentskills.io).
+A skill is a Markdown file (`SKILL.md`) with a header that tells an AI agent (like Claude Code or Codex) how to perform a specific task. It follows the [Agent Skills open standard](https://agentskills.io).
 
 ## Installation
 
