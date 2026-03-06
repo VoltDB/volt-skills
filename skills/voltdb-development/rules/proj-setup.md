@@ -4,7 +4,7 @@
 
 ## Context
 
-VoltDB client projects use Maven for build management. This rule defines the complete project structure, `pom.xml` template with all required dependencies and plugins, and build/verify instructions.
+VoltDB client projects use Maven for build management. This rule defines the complete project structure, `pom.xml` template with all required dependencies and plugins, application class templates, and build/verify instructions.
 
 ## Prerequisites
 
@@ -44,17 +44,26 @@ test -f "$VOLTDB_LICENSE" && echo "License found" || echo "License NOT found"
 ```
 <project-name>/
 ├── pom.xml
-├── schema/
-│   ├── ddl.sql              # Create tables, partitions, procedures
-│   └── remove_db.sql        # Drop everything in correct dependency order
+├── README.md
 ├── src/
-│   ├── main/java/<package>/
-│   │   └── procedures/
+│   ├── main/
+│   │   ├── java/<package>/
+│   │   │   ├── [AppName]App.java
+│   │   │   ├── VoltDBSetup.java
+│   │   │   ├── CsvDataLoader.java
+│   │   │   └── procedures/
+│   │   └── resources/
+│   │       ├── ddl.sql
+│   │       ├── remove_db.sql
+│   │       └── data/
+│   │           ├── [primary_table].csv
+│   │           └── [colocated_table].csv
 │   └── test/
 │       ├── java/<package>/
-│       └── resources/integration/
+│       │   ├── IntegrationTestBase.java
+│       │   └── [TestName]IT.java
+│       └── resources/
 │           └── test.properties
-└── README.md
 ```
 
 ## pom.xml Template
@@ -68,7 +77,7 @@ test -f "$VOLTDB_LICENSE" && echo "License found" || echo "License NOT found"
 
     <groupId>com.example</groupId>
     <artifactId><project-name></artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>1.0</version>
     <packaging>jar</packaging>
 
     <properties>
@@ -76,23 +85,36 @@ test -f "$VOLTDB_LICENSE" && echo "License found" || echo "License NOT found"
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <voltdb.version>14.3.1</voltdb.version>
+        <volt-procedure-api.version>15.0.0</volt-procedure-api.version>
         <volt-testcontainer.version>1.7.0</volt-testcontainer.version>
     </properties>
 
     <dependencies>
-        <!-- VoltDB Procedure API (for stored procedures) - provided scope.
+        <!-- VoltDB Procedure API (for stored procedures) - provided scope since
+             procedures run on the VoltDB server, not in the client application.
              Note: volt-procedure-api uses a different version from voltdbclient. -->
         <dependency>
             <groupId>org.voltdb</groupId>
             <artifactId>volt-procedure-api</artifactId>
-            <version>15.0.0-rc2</version>
+            <version>${volt-procedure-api.version}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.voltdb</groupId>
             <artifactId>voltdbclient</artifactId>
             <version>${voltdb.version}</version>
-            <scope>provided</scope>
+        </dependency>
+
+        <!-- SLF4J (required by voltdbclient at runtime) -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>2.0.9</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>2.0.9</version>
         </dependency>
 
         <!-- Test dependencies -->
@@ -114,14 +136,6 @@ test -f "$VOLTDB_LICENSE" && echo "License found" || echo "License NOT found"
         <testResources>
             <testResource>
                 <directory>src/test/resources</directory>
-                <filtering>false</filtering>
-            </testResource>
-            <testResource>
-                <directory>src/test/resources/integration</directory>
-                <filtering>true</filtering>
-                <includes>
-                    <include>**/*.properties</include>
-                </includes>
             </testResource>
         </testResources>
 
@@ -148,6 +162,13 @@ test -f "$VOLTDB_LICENSE" && echo "License found" || echo "License NOT found"
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
                 <version>3.4.2</version>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <mainClass>[package].[AppName]App</mainClass>
+                        </manifest>
+                    </archive>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -186,13 +207,266 @@ test -f "$VOLTDB_LICENSE" && echo "License found" || echo "License NOT found"
 </project>
 ```
 
+## VoltDBSetup.java Template
+
+Create `src/main/java/[package]/VoltDBSetup.java`:
+
+```java
+package [package];
+
+import org.voltdb.client.Client2;
+import org.voltdb.client.ClientResponse;
+import org.voltdb.VoltTable;
+
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+
+/**
+ * One-time schema deployment utility.
+ * Checks whether schema is already deployed via @SystemCatalog.
+ * If not, loads procedure classes and executes DDL.
+ */
+public class VoltDBSetup {
+
+    private static final String JAR_PATH = "target/<project-name>-1.0.jar";
+    private static final String DDL_RESOURCE = "ddl.sql";
+
+    private final Client2 client;
+
+    public VoltDBSetup(Client2 client) {
+        this.client = client;
+    }
+
+    /**
+     * Deploy stored procedure classes and DDL schema to VoltDB,
+     * but only if the schema has not already been deployed.
+     * Uses @SystemCatalog TABLES to check for the primary table.
+     */
+    public void initSchemaIfNeeded() throws Exception {
+        if (isSchemaDeployed()) {
+            System.out.println("Schema already deployed — skipping.");
+            return;
+        }
+
+        File jarFile = new File(JAR_PATH);
+        if (!jarFile.exists()) {
+            throw new RuntimeException(
+                "Jar not found: " + JAR_PATH + ". Run 'mvn package -DskipTests' first.");
+        }
+
+        // Load procedure classes
+        System.out.println("Loading classes from: " + jarFile);
+        byte[] jarBytes = Files.readAllBytes(jarFile.toPath());
+        ClientResponse response = client.callProcedureSync("@UpdateClasses", jarBytes, null);
+        if (response.getStatus() != ClientResponse.SUCCESS) {
+            throw new RuntimeException("Failed to load classes: " + response.getStatusString());
+        }
+        System.out.println("Classes loaded successfully.");
+
+        // Execute DDL
+        String ddl = loadResourceAsString(DDL_RESOURCE);
+        if (ddl == null) {
+            throw new RuntimeException("DDL resource not found: " + DDL_RESOURCE);
+        }
+        System.out.println("Loading schema from classpath: " + DDL_RESOURCE);
+        response = client.callProcedureSync("@AdHoc", ddl);
+        if (response.getStatus() != ClientResponse.SUCCESS) {
+            throw new RuntimeException("DDL failed: " + response.getStatusString());
+        }
+        System.out.println("Schema deployment complete.");
+    }
+
+    private boolean isSchemaDeployed() throws Exception {
+        ClientResponse response = client.callProcedureSync("@SystemCatalog", "TABLES");
+        VoltTable tables = response.getResults()[0];
+        while (tables.advanceRow()) {
+            String tableName = tables.getString("TABLE_NAME");
+            if ("[PRIMARY_TABLE]".equalsIgnoreCase(tableName)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String loadResourceAsString(String resourcePath) {
+        try (InputStream is = getClass().getClassLoader().getResourceAsStream(resourcePath)) {
+            if (is == null) {
+                System.err.println("Resource not found: " + resourcePath);
+                return null;
+            }
+            return new String(is.readAllBytes(), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to read resource: " + resourcePath, e);
+        }
+    }
+}
+```
+
+**Customization notes:**
+- Replace `[PRIMARY_TABLE]` in `isSchemaDeployed()` with the actual primary table name
+- Replace `<project-name>` in `JAR_PATH` with the actual project artifactId
+
+## [AppName]App.java Template
+
+Create `src/main/java/[package]/[AppName]App.java`:
+
+```java
+package [package];
+
+import org.voltdb.VoltTable;
+import org.voltdb.client.Client2;
+import org.voltdb.client.Client2Config;
+import org.voltdb.client.ClientFactory;
+import org.voltdb.client.ClientResponse;
+import org.voltdb.types.TimestampType;
+
+import java.util.List;
+
+/**
+ * [AppName] VoltDB client application.
+ * Demonstrates CRUD and search operations using VoltDB stored procedures.
+ */
+public class [AppName]App {
+
+    private final Client2 client;
+
+    public [AppName]App(Client2 client) {
+        this.client = client;
+    }
+
+    // ========================================
+    // CRUD Operations
+    // ========================================
+
+    // Generate one method per stored procedure.
+    // Each method calls client.callProcedureSync(), checks status, throws on failure.
+    //
+    // Single-partition upsert example:
+    // public void upsert[Table](long partitionKey, ...) throws Exception {
+    //     ClientResponse response = client.callProcedureSync(
+    //         "Upsert[Table]", partitionKey, ...);
+    //     if (response.getStatus() != ClientResponse.SUCCESS) {
+    //         throw new RuntimeException("Upsert[Table] failed: " + response.getStatusString());
+    //     }
+    // }
+    //
+    // Single-partition get example (returns VoltTable):
+    // public VoltTable get[Table](long partitionKey) throws Exception {
+    //     ClientResponse response = client.callProcedureSync("Get[Table]", partitionKey);
+    //     if (response.getStatus() != ClientResponse.SUCCESS) {
+    //         throw new RuntimeException("Get[Table] failed: " + response.getStatusString());
+    //     }
+    //     return response.getResults()[0];
+    // }
+    //
+    // Co-located access example (returns VoltTable[]):
+    // public VoltTable[] get[Table]With[Related](long partitionKey) throws Exception {
+    //     ClientResponse response = client.callProcedureSync(
+    //         "Get[Table]With[Related]", partitionKey);
+    //     if (response.getStatus() != ClientResponse.SUCCESS) {
+    //         throw new RuntimeException("Get[Table]With[Related] failed: " + response.getStatusString());
+    //     }
+    //     return response.getResults();
+    // }
+
+    // ========================================
+    // Search Operations (multi-partition)
+    // ========================================
+
+    // public VoltTable search[Table]By[Field](String value) throws Exception {
+    //     ClientResponse response = client.callProcedureSync(
+    //         "Search[Table]By[Field]", value);
+    //     if (response.getStatus() != ClientResponse.SUCCESS) {
+    //         throw new RuntimeException("Search[Table]By[Field] failed: " + response.getStatusString());
+    //     }
+    //     return response.getResults()[0];
+    // }
+
+    // ========================================
+    // Cleanup
+    // ========================================
+
+    public void deleteAllData() throws Exception {
+        // Delete in child-first order (reverse of creation)
+        client.callProcedureSync("@AdHoc", "DELETE FROM [CHILD_TABLE];");
+        client.callProcedureSync("@AdHoc", "DELETE FROM [PRIMARY_TABLE];");
+        System.out.println("All data deleted.");
+    }
+
+    // ========================================
+    // Utility
+    // ========================================
+
+    public static void printTable(String label, VoltTable table) {
+        System.out.println("\n--- " + label + " ---");
+        System.out.println(table.toFormattedString());
+    }
+
+    // ========================================
+    // Main entry point
+    // ========================================
+
+    public static void main(String[] args) throws Exception {
+        String host = args.length > 0 ? args[0] : "localhost";
+        int port = args.length > 1 ? Integer.parseInt(args[1]) : 21211;
+
+        Client2Config config = new Client2Config();
+        Client2 client = ClientFactory.createClient(config);
+        client.connectSync(host, port);
+        System.out.println("Connected to VoltDB at " + host + ":" + port);
+
+        try {
+            // One-time schema setup — skip if tables and procedures are already loaded
+            new VoltDBSetup(client).initSchemaIfNeeded();
+
+            [AppName]App app = new [AppName]App(client);
+            CsvDataLoader loader = new CsvDataLoader();
+
+            // Cleanup tables if you want to remove old state
+            app.deleteAllData();
+
+            // Load sample data from CSV files
+            // List<Long> primaryIds = loader.load[PrimaryTable]Data(app, "data/[primary_table].csv");
+            // List<Long> childIds = loader.load[ChildTable]Data(app, "data/[child_table].csv");
+
+            // Exercise single-partition reads
+            // printTable("Get [Entity] 1", app.get[Table](1L));
+
+            // Exercise co-located access
+            // VoltTable[] results = app.get[Table]With[Related](1L);
+            // printTable("[Table] (co-located)", results[0]);
+            // printTable("[Related] (co-located)", results[1]);
+
+            // Exercise multi-partition searches
+            // printTable("Search by [field]", app.search[Table]By[Field]("value"));
+
+            // Cleanup
+            app.deleteAllData();
+
+        } finally {
+            client.close();
+        }
+    }
+}
+```
+
+**Customization notes:**
+- Replace `[AppName]` with the application name (e.g., `WildlifeRehab`)
+- Uncomment and adapt method signatures based on the generated stored procedures
+- The `deleteAllData()` method must delete in child-first order
+- `main()` exercises all major operations as a demonstration
+
 ## Key Technical Details
 
 | Item | Value |
 |------|-------|
 | VoltDBCluster import | `org.voltdbtest.testcontainer.VoltDBCluster` |
 | Docker image | `voltdb/voltdb-enterprise:` + version |
-| Schema location | `schema/ddl.sql` (NOT in resources) |
+| DDL location | `src/main/resources/ddl.sql` (classpath resource) |
+| remove_db.sql | `src/main/resources/remove_db.sql` (classpath resource) |
 | Procedure dependency | `volt-procedure-api` (NOT `voltdb`) |
 | Constructor | `new VoltDBCluster(licensePath, image, extraLibDir)` |
 
@@ -220,14 +494,15 @@ mvn verify
 # - Docker pulls voltdb/voltdb-enterprise image (first run only)
 # - VoltDB container starts
 # - JAR with stored procedures is loaded
-# - DDL schema is applied
-# - Test data is generated and verified
+# - DDL schema is applied from classpath
+# - CSV data is loaded via CsvDataLoader
+# - All query scenarios verified
 # - Container shuts down
 # - BUILD SUCCESS message
 
 # TROUBLESHOOTING:
 # "Cannot connect to Docker daemon" -> Start Docker: open -a Docker (macOS)
 # "License file not found" -> Check VOLTDB_LICENSE env var or /tmp/voltdb-license.xml
-# "Schema file not found" -> Ensure schema/ddl.sql exists in project root
+# "DDL resource not found" -> Ensure ddl.sql is in src/main/resources/
 # "Connection refused" -> Wait for Docker to fully start, then retry
 ```
