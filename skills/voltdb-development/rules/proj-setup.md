@@ -11,33 +11,10 @@ VoltDB client projects use Maven for build management. This rule defines the com
 Before creating a project, the skill MUST actively verify all prerequisites (see SKILL.md Step 1 and Step 2). Do not just document them — run the checks.
 
 Required infrastructure:
-- **Docker** — installed and running (required for VoltDB testcontainer)
-- **Java 17+** — installed
-- **Maven 3.6+** — installed
-- **VoltDB Enterprise license** — file path confirmed by the user
-
-### Active Prerequisite Verification
-
-The skill runs these checks at the start of every session:
-
-```bash
-# 1. Verify Docker is running (REQUIRED - tests will fail without Docker)
-docker info > /dev/null 2>&1
-# If this fails: ask user to start Docker
-# macOS: open -a Docker
-# Linux: sudo systemctl start docker
-
-# 2. Verify Java version (must be 17+)
-java -version 2>&1
-
-# 3. Verify Maven version (must be 3.6+)
-mvn -version 2>&1
-
-# 4. Verify VoltDB license file exists (path provided by user in Step 2)
-test -f "$VOLTDB_LICENSE" && echo "License found" || echo "License NOT found"
-```
-
-**IMPORTANT:** If any prerequisite fails, stop and ask the user to fix it before proceeding. Do not generate any project files until all prerequisites are confirmed.
+- **Docker** — installed and running (checked silently in Step 1; user prompted only if not running)
+- **Java 17+** — not checked upfront; missing/wrong version fails clearly at build time
+- **Maven 3.6+** — not checked upfront; missing Maven fails clearly at build time
+- **VoltDB Enterprise license** — file path confirmed by the user in Step 2
 
 ## Project Directory Structure
 

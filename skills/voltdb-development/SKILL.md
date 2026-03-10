@@ -29,41 +29,24 @@ Rules are organized in the `rules/` directory. Read only the rule files needed f
 
 **Use the `AskUserQuestion` tool for each question. This provides clickable options for the user.**
 
-### Step 1: Verify Prerequisites
+### Step 1: Verify Docker is Running (silent — no user prompt on success)
 
-Before starting any work, verify that all required infrastructure is available. Run these checks using Bash:
+Run a single silent check. If Docker is running, proceed directly to Step 2 without any output.
 
 ```bash
-# Check Docker is running
-docker info > /dev/null 2>&1
+docker info > /dev/null 2>&1 && echo "OK" || echo "FAIL"
 ```
 
-- **If Docker is NOT running:** Stop and use `AskUserQuestion` to tell the user:
+- **Docker not running:** Use `AskUserQuestion`:
   - **question:** "Docker is required but not running. Please start Docker and let me know when it's ready."
   - **header:** "Docker"
   - **options:**
     - `Docker is running now` - I've started Docker
     - `Help me start Docker` - Show me how to start it
-  - If user selects "Help me start Docker", provide platform-specific instructions:
-    - macOS: `open -a Docker`
-    - Linux: `sudo systemctl start docker`
-  - After user confirms Docker is running, re-verify with `docker info` before proceeding.
+  - If user selects "Help me start Docker": macOS: `open -a Docker` / Linux: `sudo systemctl start docker`
+  - Re-verify with `docker info` before proceeding.
 
-```bash
-# Check Java 17+
-java -version 2>&1
-```
-
-- **If Java is not available or below version 17:** Inform the user and stop.
-
-```bash
-# Check Maven 3.6+
-mvn -version 2>&1
-```
-
-- **If Maven is not available:** Inform the user and stop.
-
-**Only proceed to Step 2 after all prerequisites pass.**
+Java and Maven are not checked upfront — missing or wrong versions produce clear errors at build time (Step 7).
 
 ### Step 2: Ask License Location
 
