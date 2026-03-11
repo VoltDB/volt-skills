@@ -1,6 +1,6 @@
 # volt-skills
 
-Custom [Claude Code skills](https://claude.ai/docs/claude-code/skills) for building [Volt Active Data](https://www.voltactivedata.com/) platform applications: VoltDB or VoltSP.
+Agent skills(https://agentskills.io) for building [Volt Active Data](https://www.voltactivedata.com/) platform applications: VoltDB or VoltSP.
 
 ## Skills
 
@@ -18,19 +18,21 @@ A skill is a Markdown file (`SKILL.md`) with a header that tells an AI agent (li
 
 ### Per-Project (recommended)
 
-Copy the skill directory into your agent's skills folder ([Claude](https://code.claude.com/docs/en/skills#where-skills-live), [Codex](https://developers.openai.com/codex/skills/#where-to-save-skills)):
+Copy the skill directory into your agent's skills folder ([Claude](https://code.claude.com/docs/en/skills#where-skills-live), [Codex](https://developers.openai.com/codex/skills/#where-to-save-skills)).
+
+For Claude Code it would be:
 
 ```bash
 # Clone this repository
 git clone https://github.com/VoltDB/volt-skills.git
 
 # Copy the skill
-cp -r volt-skills/skills/voltdb-development your-project/.claude/skills/
+cp -r volt-skills/skills/voltdb-development your-project/.claude/skills/voltdb-development
 ```
 
 Once installed, the agent should be able to pick it up automatically when facing a relevant task. 
 
-Sometimes it is possible to nudge it, e.g. in Claude Code invoke one directly with `/skill-name`:
+Sometimes it is possible to nudge it, e.g. in Claude Code or Google Antigravity invoke one directly with `/skill-name`:
 
 ```
 /voltdb-development
@@ -47,4 +49,4 @@ Generated projects typically require:
 
 ## License
 
-This project is licensed under the MIT License – see the [LICENSE](LICENSE) file for details.
+The files in this repository are licensed under the MIT License – see the [LICENSE](LICENSE) file for details.

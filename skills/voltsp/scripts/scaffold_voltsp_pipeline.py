@@ -35,7 +35,7 @@ def main() -> int:
     )
     parser.add_argument("--java-package", default="com.acme.pipeline")
     parser.add_argument("--java-class", default="SamplePipeline")
-    parser.add_argument("--schema-version", default="1.6.0")
+    parser.add_argument("--schema-version", default="1.7.0")
     parser.add_argument(
         "--force",
         action="store_true",
