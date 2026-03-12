@@ -405,25 +405,33 @@ public class [AppName]App {
             [AppName]App app = new [AppName]App(client);
             CsvDataLoader loader = new CsvDataLoader();
 
-            // Cleanup tables if you want to remove old state
             app.deleteAllData();
 
             // Load sample data from CSV files
-            // List<Long> primaryIds = loader.load[PrimaryTable]Data(app, "data/[primary_table].csv");
-            // List<Long> childIds = loader.load[ChildTable]Data(app, "data/[child_table].csv");
+            loader.load[PrimaryTable]Data(app, "data/[primary_table].csv");
+            loader.load[ChildTable]Data(app, "data/[child_table].csv");
 
-            // Exercise single-partition reads
-            // printTable("Get [Entity] 1", app.get[Table](1L));
+            // --- Demonstrate each type of operation the app supports ---
+            // Generate one simple call per operation type, with sample arguments,
+            // and print the result. Apps may have any combination of these.
+            //
+            // Order calls to reflect data dependencies of the specific app.
+            // Typically: insert/upsert reference data first, then exercise the
+            // core transaction, then query the results.
+            //
+            // Example ordering for an app with CRUD + multi-step transaction:
+            //   1. app.upsert[RefTable](...);    // insert data the transaction depends on
+            //   2. VoltTable result = app.coreTransaction(...);  // the main operation
+            //      result.advanceRow();
+            //      System.out.printf("Result: %s%n", result.getString("STATUS"));
+            //   3. printTable("Details", app.get[Table](...));   // single-partition read
+            //   4. printTable("Search", app.search[Table]By[Field]("value")); // multi-partition
+            //
+            // For CRUD-only apps (no multi-step transaction):
+            //   1. app.upsert[Table](...);
+            //   2. printTable("Get [Entity]", app.get[Table](...));
+            //   3. printTable("Search", app.search[Table]By[Field]("value"));
 
-            // Exercise co-located access
-            // VoltTable[] results = app.get[Table]With[Related](1L);
-            // printTable("[Table] (co-located)", results[0]);
-            // printTable("[Related] (co-located)", results[1]);
-
-            // Exercise multi-partition searches
-            // printTable("Search by [field]", app.search[Table]By[Field]("value"));
-
-            // Cleanup
             app.deleteAllData();
 
         } finally {
@@ -435,9 +443,9 @@ public class [AppName]App {
 
 **Customization notes:**
 - Replace `[AppName]` with the application name (e.g., `WildlifeRehab`)
-- Uncomment and adapt method signatures based on the generated stored procedures
+- Generate real (not commented-out) code for all method bodies and the `main()` body
 - The `deleteAllData()` method must delete in child-first order
-- `main()` exercises all major operations as a demonstration
+- **CRITICAL: `main()` must demonstrate all operation types the app supports** — one simple call per type (CRUD, multi-step transaction, co-located access, multi-partition search). Order calls to reflect data dependencies: insert/upsert reference data that the transaction needs first, then call the core transaction, then query results. Keep each demonstration simple: one call with sample arguments, print the result.
 
 ## Key Technical Details
 
