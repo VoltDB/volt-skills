@@ -4,7 +4,12 @@
 
 ## Context
 
-DDL and stored procedures are always generated together — the DDL defines tables and partition declarations, and procedure declarations reference the Java classes. This rule covers the complete DDL template, all procedure templates, and DDL syntax rules.
+DDL and stored procedures are always generated together. Procedures come in two forms:
+
+- **DDL-defined procedures** — single SQL statement, declared inline in `ddl.sql`. No Java class needed. Use this for any procedure that wraps a single SQL statement with no Java logic.
+- **Java class procedures** — extend `VoltProcedure`, needed when a procedure has multiple SQL statements or Java logic between them (e.g., co-located access, multi-step transactions).
+
+**Decision rule:** If a procedure has exactly one SQL statement and no Java logic, define it in DDL. Otherwise, use a Java class.
 
 ## DDL Syntax Rules
 
@@ -50,7 +55,38 @@ CREATE TABLE [TABLE1]_[TABLE2]_LOOKUP (
 );
 PARTITION TABLE [TABLE1]_[TABLE2]_LOOKUP ON COLUMN [PARTITION_COLUMN];
 
--- Single-partition procedures (partition key routed)
+-- ============================================================
+-- DDL-defined procedures (single SQL statement, no Java class)
+-- ============================================================
+
+-- Single-partition upsert
+DROP PROCEDURE Upsert[Table] IF EXISTS;
+CREATE PROCEDURE Upsert[Table]
+    PARTITION ON TABLE [TABLE] COLUMN [PARTITION_COLUMN]
+    AS UPSERT INTO [TABLE] ([PARTITION_COL], [OTHER_COL], ...) VALUES (?, ?, ...);
+
+-- Single-partition get by partition key
+DROP PROCEDURE Get[Table] IF EXISTS;
+CREATE PROCEDURE Get[Table]
+    PARTITION ON TABLE [TABLE] COLUMN [PARTITION_COLUMN]
+    AS SELECT * FROM [TABLE] WHERE [PARTITION_COL] = ?;
+
+-- Single-partition lookup table access
+DROP PROCEDURE Get[Table1][Table2] IF EXISTS;
+CREATE PROCEDURE Get[Table1][Table2]
+    PARTITION ON TABLE [TABLE1]_[TABLE2]_LOOKUP COLUMN [PARTITION_COL]
+    AS SELECT * FROM [TABLE1]_[TABLE2]_LOOKUP WHERE [PARTITION_COL] = ?;
+
+-- Multi-partition search (no partition key in WHERE — scans all nodes)
+DROP PROCEDURE Search[Table]By[Field] IF EXISTS;
+CREATE PROCEDURE Search[Table]By[Field]
+    AS SELECT * FROM [TABLE] WHERE [FIELD] = ?;
+
+-- ============================================================
+-- Java class procedures (multiple SQL statements or Java logic)
+-- Only needed for co-located access and multi-step transactions.
+-- ============================================================
+
 -- PARAMETER N is optional (0-indexed). Omit if partition key is the first parameter.
 DROP PROCEDURE [package].procedures.[ProcedureName] IF EXISTS;
 CREATE PROCEDURE PARTITION ON TABLE [TABLE] COLUMN [PARTITION_COLUMN]
@@ -59,10 +95,6 @@ CREATE PROCEDURE PARTITION ON TABLE [TABLE] COLUMN [PARTITION_COLUMN]
 -- If partition key is NOT the first parameter, specify its position:
 -- CREATE PROCEDURE PARTITION ON TABLE [TABLE] COLUMN [PARTITION_COLUMN] PARAMETER [N]
 --     FROM CLASS [package].procedures.[ProcedureName];
-
--- Multi-partition procedures (searches all nodes)
-DROP PROCEDURE [package].procedures.[SearchProcedure] IF EXISTS;
-CREATE PROCEDURE FROM CLASS [package].procedures.[SearchProcedure];
 ```
 
 ## DDL Schema Template (Key-Value)
@@ -78,11 +110,15 @@ CREATE TABLE KEYVALUE
 
 PARTITION TABLE KEYVALUE ON COLUMN KEYNAME;
 
-DROP PROCEDURE [package].procedures.Put IF EXISTS;
-CREATE PROCEDURE FROM CLASS [package].procedures.Put;
+DROP PROCEDURE Put IF EXISTS;
+CREATE PROCEDURE Put
+    PARTITION ON TABLE KEYVALUE COLUMN KEYNAME
+    AS UPSERT INTO KEYVALUE (KEYNAME, VALUE) VALUES (?, ?);
 
-DROP PROCEDURE [package].procedures.Get IF EXISTS;
-CREATE PROCEDURE FROM CLASS [package].procedures.Get;
+DROP PROCEDURE Get IF EXISTS;
+CREATE PROCEDURE Get
+    PARTITION ON TABLE KEYVALUE COLUMN KEYNAME
+    AS SELECT VALUE FROM KEYVALUE WHERE KEYNAME = ?;
 ```
 
 ## Remove DDL Template (Partitioned)
@@ -95,13 +131,20 @@ The `remove_db.sql` file at `src/main/resources/remove_db.sql` drops all objects
 
 This is the reverse order of creation — what was created last is dropped first.
 
+**Naming:** DDL-defined procedures use their short name (e.g., `Get[Table]`). Java class procedures use the fully qualified class name (e.g., `[package].procedures.[ProcedureName]`).
+
 ```sql
 -- VoltDB Remove Schema — drops all objects in dependency order
 -- Run this to clean up the database for a fresh start
 
 -- Step 1: Drop procedures first (they reference tables)
+-- DDL-defined procedures: use short name
+DROP PROCEDURE Upsert[Table] IF EXISTS;
+DROP PROCEDURE Get[Table] IF EXISTS;
+DROP PROCEDURE Get[Table1][Table2] IF EXISTS;
+DROP PROCEDURE Search[Table]By[Field] IF EXISTS;
+-- Java class procedures: use fully qualified class name
 DROP PROCEDURE [package].procedures.[ProcedureName] IF EXISTS;
-DROP PROCEDURE [package].procedures.[SearchProcedure] IF EXISTS;
 
 -- Step 2: Drop lookup tables (they hold denormalized data from other tables)
 DROP TABLE [TABLE1]_[TABLE2]_LOOKUP IF EXISTS;
@@ -118,17 +161,47 @@ DROP TABLE [TABLE_NAME] IF EXISTS;
 ```sql
 -- VoltDB Remove Schema — drops all objects in dependency order
 
--- Drop procedures first
-DROP PROCEDURE [package].procedures.Put IF EXISTS;
-DROP PROCEDURE [package].procedures.Get IF EXISTS;
+-- Drop procedures first (DDL-defined — use short name)
+DROP PROCEDURE Put IF EXISTS;
+DROP PROCEDURE Get IF EXISTS;
 
 -- Drop table
 DROP TABLE KEYVALUE IF EXISTS;
 ```
 
-## Stored Procedure Templates
+## Stored Procedure Decision Rule
 
-All procedures go under `src/main/java/[package]/procedures/`.
+| Procedure type | # SQL statements | Java logic? | Define in |
+|----------------|-----------------|-------------|-----------|
+| Insert/Upsert | 1 | No | **DDL** |
+| Get by partition key | 1 | No | **DDL** |
+| Lookup table access | 1 | No | **DDL** |
+| Multi-partition search | 1 | No | **DDL** |
+| Simple Put/Get (KV) | 1 | No | **DDL** |
+| Co-located access | 2+ | No | **Java class** |
+| Multi-step transaction | 2+ | Yes | **Java class** |
+
+**When ALL procedures are DDL-defined** (no co-located access or multi-step transactions):
+- No `procedures/` directory needed
+- No `volt-procedure-api` Maven dependency needed
+- No `@UpdateClasses` call needed in `VoltDBSetup`
+- No `project.jar.path` needed in `test.properties`
+- No `loadClasses()` call needed in `IntegrationTestBase`
+
+## DDL-Defined Procedure Naming
+
+DDL-defined procedures are referenced by their short name in client code:
+- `client.callProcedureAsync("Upsert[Table]", ...)`
+- `client.callProcedureAsync("Get[Table]", ...)`
+- `client.callProcedureAsync("Search[Table]By[Field]", ...)`
+
+This is the same naming convention as Java class procedures — the client code is identical.
+
+**CRITICAL: Parameter order matters for partitioned DDL procedures.** The partition column value must be the first parameter (`?`) in the SQL statement. VoltDB uses parameter position 0 by default for routing. If the partition column is not the first `?`, add `PARAMETER N` to the `CREATE PROCEDURE` statement.
+
+## Java Class Procedure Templates
+
+Java class procedures go under `src/main/java/[package]/procedures/`. Only generate Java class files for procedures that require multiple SQL statements or Java logic.
 
 **CRITICAL: Partition key parameter position must match the DDL declaration.**
 
@@ -137,7 +210,7 @@ VoltDB routes procedure calls based on the parameter declared in the DDL (`PARAM
 - If `PARAMETER N` is specified, VoltDB uses parameter N for routing
 - Mismatched routing causes: INSERT/UPSERT "Mispartitioned tuple" error, SELECT returns wrong/incomplete data (silent failure!)
 
-### Insert/Upsert (Single-Partition)
+### Co-located Access (Single-Partition) — join tables sharing partition key
 
 ```java
 package [package].procedures;
@@ -146,37 +219,6 @@ import org.voltdb.SQLStmt;
 import org.voltdb.VoltProcedure;
 import org.voltdb.VoltTable;
 
-public class Upsert[Table] extends VoltProcedure {
-    public final SQLStmt upsert = new SQLStmt(
-        "UPSERT INTO [TABLE] ([PARTITION_COL], [OTHER_COL], ...) VALUES (?, ?, ...);"
-    );
-
-    // Partition key position must match DDL PARAMETER N (default: parameter 0)
-    public VoltTable[] run(long partitionKey, long otherId, String name, ...) {
-        voltQueueSQL(upsert, partitionKey, otherId, name, ...);
-        return voltExecuteSQL();
-    }
-}
-```
-
-### Get by Partition Key (Single-Partition)
-
-```java
-public class Get[Table] extends VoltProcedure {
-    public final SQLStmt get = new SQLStmt(
-        "SELECT * FROM [TABLE] WHERE [PARTITION_COL] = ?;"
-    );
-
-    public VoltTable[] run(long partitionKey) {
-        voltQueueSQL(get, partitionKey);
-        return voltExecuteSQL();
-    }
-}
-```
-
-### Co-located Access (Single-Partition) — join tables sharing partition key
-
-```java
 public class Get[Table]With[Related] extends VoltProcedure {
     public final SQLStmt getMain = new SQLStmt(
         "SELECT * FROM [TABLE] WHERE [PARTITION_COL] = ?;");
@@ -187,75 +229,6 @@ public class Get[Table]With[Related] extends VoltProcedure {
     public VoltTable[] run(long partitionKey) {
         voltQueueSQL(getMain, partitionKey);
         voltQueueSQL(getRelated, partitionKey);
-        return voltExecuteSQL();
-    }
-}
-```
-
-### Lookup Table Access (Single-Partition)
-
-```java
-public class Get[Table1][Table2] extends VoltProcedure {
-    public final SQLStmt getLookup = new SQLStmt(
-        "SELECT * FROM [TABLE1]_[TABLE2]_LOOKUP WHERE [PARTITION_COL] = ?;");
-
-    // Partition key position must match DDL PARAMETER N (default: parameter 0)
-    public VoltTable[] run(long partitionKey) {
-        voltQueueSQL(getLookup, partitionKey);
-        return voltExecuteSQL();
-    }
-}
-```
-
-### Multi-Partition Search (no partition key in WHERE)
-
-```java
-public class Search[Table]By[Field] extends VoltProcedure {
-    public final SQLStmt search = new SQLStmt(
-        "SELECT * FROM [TABLE] WHERE [FIELD] = ?;");
-
-    public VoltTable[] run(String searchValue) {
-        voltQueueSQL(search, searchValue);
-        return voltExecuteSQL();
-    }
-}
-```
-
-### Simple Put/Get (for Key-Value)
-
-```java
-package [package].procedures;
-
-import org.voltdb.SQLStmt;
-import org.voltdb.VoltProcedure;
-import org.voltdb.VoltTable;
-
-public class Put extends VoltProcedure {
-    public final SQLStmt insertKey = new SQLStmt(
-        "INSERT INTO KEYVALUE (KEYNAME, VALUE) VALUES (?, ?);"
-    );
-
-    public VoltTable[] run(int key, String value) {
-        voltQueueSQL(insertKey, key, value);
-        return voltExecuteSQL();
-    }
-}
-```
-
-```java
-package [package].procedures;
-
-import org.voltdb.SQLStmt;
-import org.voltdb.VoltProcedure;
-import org.voltdb.VoltTable;
-
-public class Get extends VoltProcedure {
-    public final SQLStmt getKey = new SQLStmt(
-        "SELECT VALUE FROM KEYVALUE WHERE KEYNAME = ?;"
-    );
-
-    public VoltTable[] run(int key) {
-        voltQueueSQL(getKey, key);
         return voltExecuteSQL();
     }
 }
