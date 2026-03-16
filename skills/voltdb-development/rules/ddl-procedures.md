@@ -51,9 +51,14 @@ CREATE TABLE [TABLE1]_[TABLE2]_LOOKUP (
 PARTITION TABLE [TABLE1]_[TABLE2]_LOOKUP ON COLUMN [PARTITION_COLUMN];
 
 -- Single-partition procedures (partition key routed)
+-- PARAMETER N is optional (0-indexed). Omit if partition key is the first parameter.
 DROP PROCEDURE [package].procedures.[ProcedureName] IF EXISTS;
 CREATE PROCEDURE PARTITION ON TABLE [TABLE] COLUMN [PARTITION_COLUMN]
     FROM CLASS [package].procedures.[ProcedureName];
+
+-- If partition key is NOT the first parameter, specify its position:
+-- CREATE PROCEDURE PARTITION ON TABLE [TABLE] COLUMN [PARTITION_COLUMN] PARAMETER [N]
+--     FROM CLASS [package].procedures.[ProcedureName];
 
 -- Multi-partition procedures (searches all nodes)
 DROP PROCEDURE [package].procedures.[SearchProcedure] IF EXISTS;
@@ -125,13 +130,14 @@ DROP TABLE KEYVALUE IF EXISTS;
 
 All procedures go under `src/main/java/[package]/procedures/`.
 
-**CRITICAL: Partition key MUST be the FIRST parameter in all single-partition procedures!**
+**CRITICAL: Partition key parameter position must match the DDL declaration.**
 
-VoltDB routes procedure calls based on the FIRST parameter value. If the partition key is not first:
-- INSERT/UPSERT fails with "Mispartitioned tuple" error
-- SELECT returns wrong/incomplete data (silent failure!)
+VoltDB routes procedure calls based on the parameter declared in the DDL (`PARAMETER N`, 0-indexed, defaults to 0).
+- If `PARAMETER N` is omitted, VoltDB uses parameter 0 (the first) for routing
+- If `PARAMETER N` is specified, VoltDB uses parameter N for routing
+- Mismatched routing causes: INSERT/UPSERT "Mispartitioned tuple" error, SELECT returns wrong/incomplete data (silent failure!)
 
-### Insert/Upsert (Single-Partition) — Partition key FIRST
+### Insert/Upsert (Single-Partition)
 
 ```java
 package [package].procedures;
@@ -145,7 +151,7 @@ public class Upsert[Table] extends VoltProcedure {
         "UPSERT INTO [TABLE] ([PARTITION_COL], [OTHER_COL], ...) VALUES (?, ?, ...);"
     );
 
-    // CRITICAL: partitionKey MUST be the FIRST parameter!
+    // Partition key position must match DDL PARAMETER N (default: parameter 0)
     public VoltTable[] run(long partitionKey, long otherId, String name, ...) {
         voltQueueSQL(upsert, partitionKey, otherId, name, ...);
         return voltExecuteSQL();
@@ -177,7 +183,7 @@ public class Get[Table]With[Related] extends VoltProcedure {
     public final SQLStmt getRelated = new SQLStmt(
         "SELECT * FROM [RELATED] WHERE [PARTITION_COL] = ?;");
 
-    // CRITICAL: partitionKey MUST be the FIRST parameter!
+    // Partition key position must match DDL PARAMETER N (default: parameter 0)
     public VoltTable[] run(long partitionKey) {
         voltQueueSQL(getMain, partitionKey);
         voltQueueSQL(getRelated, partitionKey);
@@ -193,7 +199,7 @@ public class Get[Table1][Table2] extends VoltProcedure {
     public final SQLStmt getLookup = new SQLStmt(
         "SELECT * FROM [TABLE1]_[TABLE2]_LOOKUP WHERE [PARTITION_COL] = ?;");
 
-    // CRITICAL: partitionKey MUST be the FIRST parameter!
+    // Partition key position must match DDL PARAMETER N (default: parameter 0)
     public VoltTable[] run(long partitionKey) {
         voltQueueSQL(getLookup, partitionKey);
         return voltExecuteSQL();

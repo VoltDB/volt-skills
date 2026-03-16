@@ -68,10 +68,10 @@ mvn verify
 
 \`\`\`bash
 # Run against a VoltDB instance (default: localhost:21211)
-java -cp target/<project-name>-1.0.jar:target/lib/* [package].[AppName]App
+java -cp "target/<project-name>-1.0.jar:target/lib/*" [package].[AppName]App
 
 # Specify host and port
-java -cp target/<project-name>-1.0.jar:target/lib/* [package].[AppName]App <host> <port>
+java -cp "target/<project-name>-1.0.jar:target/lib/*" [package].[AppName]App <host> <port>
 \`\`\`
 
 The application will:

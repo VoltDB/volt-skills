@@ -20,7 +20,7 @@ Rules are organized in the `rules/` directory. Read only the rule files needed f
 | Priority | Category | Impact | Rule Files |
 |----------|----------|--------|------------|
 | 1 | Partitioning Strategy | HIGH | [rules/part-critical-rules.md](rules/part-critical-rules.md), [rules/part-choose-column.md](rules/part-choose-column.md), [rules/part-colocation.md](rules/part-colocation.md), [rules/part-lookup-tables.md](rules/part-lookup-tables.md) |
-| 2 | DDL & Stored Procedures | HIGH | [rules/ddl-procedures.md](rules/ddl-procedures.md) |
+| 2 | DDL & Stored Procedures | HIGH | [rules/ddl-procedures.md](rules/ddl-procedures.md), [rules/ddl-multi-step-transactions.md](rules/ddl-multi-step-transactions.md) |
 | 3 | Project Setup | MEDIUM | [rules/proj-setup.md](rules/proj-setup.md) |
 | 4 | Integration Testing | MEDIUM | [rules/test-base-class.md](rules/test-base-class.md), [rules/test-data-and-patterns.md](rules/test-data-and-patterns.md) |
 | 5 | Workflow & Templates | MEDIUM | [rules/workflow-readme-template.md](rules/workflow-readme-template.md) |
@@ -115,12 +115,37 @@ If user selects "Describe custom tables", ask them to describe their tables in a
      - `Modify strategy` - I want to change something
      - `Explain more` - Tell me more about the trade-offs
 
+**Phase 1b — Multi-Step Transaction Analysis** (advanced — skip for Key-Value or simple CRUD):
+
+After the user confirms the partitioning strategy, analyze the data model for multi-step atomic operation opportunities. Read [rules/ddl-multi-step-transactions.md](rules/ddl-multi-step-transactions.md) for patterns and detection rules.
+
+Look for these patterns in the user's data model:
+- Transfer/move operations between entities (e.g., funds transfer, inventory movement)
+- Validate-then-write patterns (e.g., check balance before debit)
+- Multi-table writes that should be atomic (e.g., create order + update inventory)
+- Read-compute-write cycles (e.g., calculate discount then apply)
+- Mutation + audit logging
+
+If opportunities are detected, use `AskUserQuestion` with:
+- **question:** "Your data model has opportunities for multi-step atomic operations. In VoltDB, a stored procedure is a full ACID transaction — multiple reads, business logic, and writes all execute atomically. Would you like to add any of these? [list detected opportunities]"
+- **header:** "Transactions"
+- **options:**
+  - `Yes, add suggested transactions` (Recommended) - Generate the suggested multi-step procedures
+  - `Let me choose` - I'll pick which ones I want
+  - `Skip for now` - Keep it simple with basic CRUD only
+
+If the user wants multi-step procedures, ensure partitioning alignment:
+- All tables in the transaction must be co-located on the same partition column, or be replicated
+- The procedure must be partitioned on the common partition column
+- Replicated tables can be read but not written from single-partition procedures
+
 **Phase 2 — Code Generation:**
 1. Read [rules/proj-setup.md](rules/proj-setup.md) → create Maven project structure + `pom.xml`
 2. Read [rules/ddl-procedures.md](rules/ddl-procedures.md) → generate:
    - `src/main/resources/ddl.sql` (with `DROP PROCEDURE IF EXISTS` pattern)
    - `src/main/resources/remove_db.sql` (DROP in dependency order)
    - Stored procedures under `src/main/java/[package]/procedures/`
+   - If multi-step transactions were requested (Phase 1b), also generate multi-step procedure classes using the pattern from [rules/ddl-multi-step-transactions.md](rules/ddl-multi-step-transactions.md)
 3. Generate `[AppName]App.java` — main client app (rules/proj-setup.md template)
 4. Generate `VoltDBSetup.java` — schema deployment (rules/proj-setup.md template)
 5. Generate `CsvDataLoader.java` — CSV loading utility (rules/test-data-and-patterns.md template)

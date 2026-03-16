@@ -15,22 +15,34 @@ VoltDB supports ONLY single-column partition keys. NO composite partition keys.
 ✓ RIGHT: PARTITION ON CUSTOMER_ID
 ```
 
-## Rule 2: Partition Key MUST Be FIRST Parameter
+## Rule 2: Partition Key Parameter Must Match DDL Declaration
 
-VoltDB routes procedure calls based on the FIRST parameter. The partition key MUST be the first parameter in `run()` and in client `callProcedureAsync()` calls.
+VoltDB routes procedure calls based on the parameter declared in the DDL. By default, parameter 0 (the first) is used, but you can specify any parameter position with `PARAMETER N` (0-indexed).
 
 ```
-✓ CORRECT:
-  run(long shelterId, long petId, String name, ...)
-  callProcedureAsync("UpsertPet", shelterId, petId, name, ...)
+-- Default: partition key is parameter 0 (first parameter)
+CREATE PROCEDURE PARTITION ON TABLE SHELTERS COLUMN SHELTER_ID
+    FROM CLASS pkg.procedures.UpsertShelter;
+→ run(long shelterId, String name, ...)  -- shelterId is param 0
 
-✗ WRONG (causes "Mispartitioned tuple" error!):
-  run(long petId, String name, long shelterId, ...)
-  callProcedureAsync("UpsertPet", petId, name, shelterId, ...)
+-- Explicit PARAMETER: partition key can be ANY parameter
+CREATE PROCEDURE PARTITION ON TABLE TRANSACTIONS COLUMN ACCOUNT_ID PARAMETER 0
+    FROM CLASS pkg.procedures.ProcessTransaction;
+→ run(long accountId, long txnId, ...)  -- accountId is param 0
 
-Why? VoltDB uses first param (petId=4) to route to partition,
-but data has shelterId=1 which belongs to different partition.
+-- Partition key is NOT the first parameter:
+CREATE PROCEDURE PARTITION ON TABLE PETS COLUMN SHELTER_ID PARAMETER 1
+    FROM CLASS pkg.procedures.UpsertPet;
+→ run(long petId, long shelterId, String name, ...)  -- shelterId is param 1
+
+Why PARAMETER matters:
+VoltDB extracts the declared parameter to determine which partition
+receives the call. All parameters are passed to the procedure.
+If the DDL says PARAMETER 1, VoltDB uses the second argument for routing.
+If omitted, PARAMETER 0 is assumed (first argument).
 ```
+
+**Best practice:** Put the partition key as the first parameter when possible (simplest). Use `PARAMETER N` when the natural parameter order places it elsewhere.
 
 ## Rule 3: Joins Only on Partition Column
 
@@ -88,9 +100,14 @@ Tables WITHOUT a PARTITION statement are REPLICATED (copied to all nodes). Acces
 ## Procedure Declaration Syntax
 
 ```sql
--- Single-partition (partition key MUST be FIRST parameter):
+-- Single-partition (partition key is first parameter by default):
 CREATE PROCEDURE PARTITION ON TABLE X COLUMN Y
     FROM CLASS pkg.procedures.MyProc;
+
+-- Single-partition (partition key at specific parameter position):
+CREATE PROCEDURE PARTITION ON TABLE X COLUMN Y PARAMETER 2
+    FROM CLASS pkg.procedures.MyProc;
+-- → run(otherArg1, otherArg2, partitionKey, ...)  -- param 2 (0-indexed)
 
 -- Multi-partition:
 CREATE PROCEDURE FROM CLASS pkg.procedures.MyProc;
@@ -108,5 +125,5 @@ CREATE PROCEDURE FROM CLASS pkg.procedures.MyProc;
 | Query searches without partition key | Multi-partition procedure |
 | Need cross-domain query (fast) | Create lookup table |
 | Need cross-domain query (simple) | Multi-partition procedure |
-| **Writing single-partition procedure** | **Partition key MUST be FIRST parameter** |
-| **Calling single-partition procedure** | **Pass partition key as FIRST argument** |
+| **Writing single-partition procedure** | **Partition key position must match DDL PARAMETER N (default: 0)** |
+| **Calling single-partition procedure** | **Pass partition key at the position declared in DDL** |
