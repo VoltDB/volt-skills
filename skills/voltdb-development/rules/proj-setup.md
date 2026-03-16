@@ -28,7 +28,7 @@ Required infrastructure:
 │   │   │   ├── [AppName]App.java
 │   │   │   ├── VoltDBSetup.java
 │   │   │   ├── CsvDataLoader.java
-│   │   │   └── procedures/
+│   │   │   └── procedures/          ← only if Java class procedures exist
 │   │   └── resources/
 │   │       ├── ddl.sql
 │   │       ├── remove_db.sql
@@ -42,6 +42,8 @@ Required infrastructure:
 │       └── resources/
 │           └── test.properties
 ```
+
+**Note:** The `procedures/` directory and `volt-procedure-api` dependency are only needed when Java class procedures exist (co-located access or multi-step transactions). When all procedures are DDL-defined, omit them.
 
 ## pom.xml Template
 
@@ -67,9 +69,10 @@ Required infrastructure:
     </properties>
 
     <dependencies>
-        <!-- VoltDB Procedure API (for stored procedures) - provided scope since
+        <!-- VoltDB Procedure API (for Java class stored procedures) - provided scope since
              procedures run on the VoltDB server, not in the client application.
-             Note: volt-procedure-api uses a different version from voltdbclient. -->
+             Note: volt-procedure-api uses a different version from voltdbclient.
+             OMIT this dependency if all procedures are DDL-defined (no Java class procedures). -->
         <dependency>
             <groupId>org.voltdb</groupId>
             <artifactId>volt-procedure-api</artifactId>
@@ -204,10 +207,15 @@ import java.nio.file.Files;
 /**
  * One-time schema deployment utility.
  * Checks whether schema is already deployed via @SystemCatalog.
- * If not, loads procedure classes and executes DDL.
+ * If not, loads procedure classes (if any) and executes DDL.
+ *
+ * When all procedures are DDL-defined: omit JAR_PATH, @UpdateClasses block,
+ * and the java.io.File / java.nio.file.Files imports.
  */
 public class VoltDBSetup {
 
+    // Include JAR_PATH only if the project has Java class procedures.
+    // Omit this field and the @UpdateClasses block below when all procedures are DDL-defined.
     private static final String JAR_PATH = "target/<project-name>-1.0.jar";
     private static final String DDL_RESOURCE = "ddl.sql";
 
@@ -218,7 +226,7 @@ public class VoltDBSetup {
     }
 
     /**
-     * Deploy stored procedure classes and DDL schema to VoltDB,
+     * Deploy stored procedure classes (if any) and DDL schema to VoltDB,
      * but only if the schema has not already been deployed.
      * Uses @SystemCatalog TABLES to check for the primary table.
      */
@@ -228,6 +236,8 @@ public class VoltDBSetup {
             return;
         }
 
+        // --- @UpdateClasses block: INCLUDE only if Java class procedures exist ---
+        // --- OMIT this entire block when all procedures are DDL-defined ---
         File jarFile = new File(JAR_PATH);
         if (!jarFile.exists()) {
             throw new RuntimeException(
@@ -242,6 +252,7 @@ public class VoltDBSetup {
             throw new RuntimeException("Failed to load classes: " + response.getStatusString());
         }
         System.out.println("Classes loaded successfully.");
+        // --- End @UpdateClasses block ---
 
         // Execute DDL
         String ddl = loadResourceAsString(DDL_RESOURCE);
@@ -249,9 +260,9 @@ public class VoltDBSetup {
             throw new RuntimeException("DDL resource not found: " + DDL_RESOURCE);
         }
         System.out.println("Loading schema from classpath: " + DDL_RESOURCE);
-        response = client.callProcedureSync("@AdHoc", ddl);
-        if (response.getStatus() != ClientResponse.SUCCESS) {
-            throw new RuntimeException("DDL failed: " + response.getStatusString());
+        ClientResponse ddlResponse = client.callProcedureSync("@AdHoc", ddl);
+        if (ddlResponse.getStatus() != ClientResponse.SUCCESS) {
+            throw new RuntimeException("DDL failed: " + ddlResponse.getStatusString());
         }
         System.out.println("Schema deployment complete.");
     }
@@ -285,6 +296,7 @@ public class VoltDBSetup {
 **Customization notes:**
 - Replace `[PRIMARY_TABLE]` in `isSchemaDeployed()` with the actual primary table name
 - Replace `<project-name>` in `JAR_PATH` with the actual project artifactId
+- **When all procedures are DDL-defined:** remove `JAR_PATH`, the `@UpdateClasses` block, and the `java.io.File` / `java.nio.file.Files` imports. The method only needs to execute DDL via `@AdHoc`.
 
 ## [AppName]App.java Template
 
@@ -455,7 +467,7 @@ public class [AppName]App {
 | Docker image | `voltdb/voltdb-enterprise:` + version |
 | DDL location | `src/main/resources/ddl.sql` (classpath resource) |
 | remove_db.sql | `src/main/resources/remove_db.sql` (classpath resource) |
-| Procedure dependency | `volt-procedure-api` (NOT `voltdb`) |
+| Procedure dependency | `volt-procedure-api` (NOT `voltdb`) — only if Java class procedures exist |
 | Constructor | `new VoltDBCluster(licensePath, image, extraLibDir)` |
 
 ## Build and Verify Instructions
@@ -481,8 +493,8 @@ mvn verify
 # EXPECTED OUTPUT ON SUCCESS:
 # - Docker pulls voltdb/voltdb-enterprise image (first run only)
 # - VoltDB container starts
-# - JAR with stored procedures is loaded
-# - DDL schema is applied from classpath
+# - JAR with stored procedures is loaded (only if Java class procedures exist)
+# - DDL schema is applied from classpath (includes DDL-defined procedures)
 # - CSV data is loaded via CsvDataLoader
 # - All query scenarios verified
 # - Container shuts down
