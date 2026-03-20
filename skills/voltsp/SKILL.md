@@ -9,6 +9,10 @@ Use this skill as a compact execution guide, then load only the reference file n
 
 Prefer official VoltSP documentation whenever details conflict with memory.
 
+## Requirements
+
+This skill describes VoltSP version 1.7.1. If you're using a different version, warn the user and suggest upgrade.
+
 ## Choose the track
 
 1. Choose pipeline definition style:
