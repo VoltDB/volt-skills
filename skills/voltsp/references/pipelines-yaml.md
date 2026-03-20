@@ -7,7 +7,7 @@ Use this when defining the full pipeline declaratively.
 Use this as the baseline shape:
 
 ```yaml
-$schema: "https://docs.voltdb.com/ActiveSP/schemas/voltsp1.6.0.json"
+$schema: "https://docs.voltdb.com/ActiveSP/schemas/voltsp1.7.1.json"
 version: 1
 name: "stdin-to-stdout"
 source: {}

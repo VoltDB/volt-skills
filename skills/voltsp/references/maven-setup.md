@@ -19,9 +19,11 @@ Add only when needed by your pipeline:
 - Kafka clients: `org.apache.kafka:kafka-clients` (`provided`)
 
 Test stack:
-- `org.voltdb:volt-stream-testcontainer` (`test`)
-- `org.voltdb:volt-stream-api-test` (`test`)
-- JUnit + AssertJ (`test`)
+- `org.voltdb:volt-stream-testcontainer` (`test`) — provides `VoltSpContainer` for black-box integration tests
+- `org.voltdb:volt-stream-api-test` (`test`) — provides `ResourceHelper` for locating license files and keystores
+- JUnit 5 + AssertJ + Awaitility (`test`)
+
+For test patterns and `VoltSpContainer` usage: read `references/testing.md`.
 
 ## Template POM
 
