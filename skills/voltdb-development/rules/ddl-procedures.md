@@ -180,6 +180,7 @@ DROP TABLE KEYVALUE IF EXISTS;
 | Simple Put/Get (KV) | 1 | No | **DDL** |
 | Co-located access | 2+ | No | **Java class** |
 | Multi-step transaction | 2+ | Yes | **Java class** |
+| **Writes to replicated table** | **any** | **any** | **Must be multi-partition** |
 
 **When ALL procedures are DDL-defined** (no co-located access or multi-step transactions):
 - No `procedures/` directory needed

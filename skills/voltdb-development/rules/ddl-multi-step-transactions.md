@@ -42,6 +42,14 @@ Multi-step transactions work best as **single-partition** procedures. For this t
 3. **Replicated tables can be read** from any single-partition procedure (they're copied to all partitions)
 4. **Replicated tables cannot be written** from single-partition procedures — writes to replicated tables require multi-partition procedures
 
+**Verification checkpoint — apply before generating each multi-step procedure:**
+
+For every UPDATE/INSERT/UPSERT/DELETE statement in the procedure, check the target table:
+- Is it co-located on the procedure's partition column? → OK for single-partition
+- Is it a replicated table? → **STOP.** Single-partition procedures cannot write to replicated tables.
+  - First, reconsider: should this table really be replicated? If the procedure writes to it on every transaction (e.g., decrementing stock, updating counters), the table is not truly reference data — **partition it instead**.
+  - If the table must remain replicated and writes are rare, make the procedure **multi-partition**.
+
 ```
 ✓ Single-partition multi-step (FAST — all on same partition):
   ACCOUNTS partitioned on ACCOUNT_ID
@@ -51,6 +59,14 @@ Multi-step transactions work best as **single-partition** procedures. For this t
     - READ from ACCOUNTS, TRANSACTIONS, MERCHANTS
     - WRITE to ACCOUNTS and TRANSACTIONS
     - All in one atomic operation
+
+✗ WRONG — single-partition procedure writing to replicated table:
+  ORDERS partitioned on CUSTOMER_ID
+  PRODUCTS replicated
+  PlaceOrder partitioned on CUSTOMER_ID tries to UPDATE PRODUCTS
+  → DDL load FAILS: "Trying to write to replicated table in single-partition procedure"
+  → Fix: If PRODUCTS.STOCK is updated frequently, partition PRODUCTS on PRODUCT_ID
+    and make PlaceOrder a multi-partition procedure.
 
 ✗ Cannot do in single-partition:
   ACCOUNTS partitioned on ACCOUNT_ID

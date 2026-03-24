@@ -107,7 +107,8 @@ If user selects "Describe custom tables", ask them to describe their tables in a
 2. If co-location is needed, read [rules/part-colocation.md](rules/part-colocation.md)
 3. If cross-domain queries exist, read [rules/part-lookup-tables.md](rules/part-lookup-tables.md)
 4. Recommend partition column, co-location groups, lookup tables, and procedure types
-5. Present strategy for user confirmation using `AskUserQuestion`:
+5. **Validate replicated table candidates:** For each table marked as replicated, check whether any of the planned high-frequency operations (order placement, transaction processing, inventory updates, counter increments) will write to it. If yes, the table is not truly reference data — partition it instead. Only tables that are genuinely read-mostly (written rarely via admin/bulk operations) should be replicated.
+6. Present strategy for user confirmation using `AskUserQuestion`:
    - **question:** "Does this partitioning strategy work for you? [strategy summary]"
    - **header:** "Strategy"
    - **options:**
@@ -138,6 +139,7 @@ If the user wants multi-step procedures, ensure partitioning alignment:
 - All tables in the transaction must be co-located on the same partition column, or be replicated
 - The procedure must be partitioned on the common partition column
 - Replicated tables can be read but not written from single-partition procedures
+- **Guardrail:** For each proposed multi-step procedure, check every write statement (INSERT/UPDATE/UPSERT/DELETE). If any write targets a replicated table, first reconsider whether that table should be partitioned instead (see Phase 1 step 5). If it must stay replicated, the procedure must be declared as multi-partition.
 
 **Phase 2 — Code Generation:**
 1. Read [rules/proj-setup.md](rules/proj-setup.md) → create Maven project structure + `pom.xml`
