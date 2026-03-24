@@ -154,6 +154,7 @@ If the user wants multi-step procedures, ensure partitioning alignment:
 1. Read [rules/proj-setup.md](rules/proj-setup.md) → create Maven project structure + `pom.xml`
 2. Read [rules/ddl-procedures.md](rules/ddl-procedures.md) → generate:
    - `src/main/resources/ddl.sql` (with `DROP PROCEDURE IF EXISTS` pattern) — simple single-statement procedures are defined inline in DDL using `CREATE PROCEDURE ... AS sql-statement`
+   - **PARAMETER N check:** For each DDL-defined single-partition procedure, verify that the partition column's `?` is at position 0. If not (common for co-located table upserts where the table's own ID comes first), add `PARAMETER N`. See the verification section in ddl-procedures.md.
    - `src/main/resources/remove_db.sql` (DROP in dependency order)
    - Java class procedures under `src/main/java/[package]/procedures/` — **only** for co-located access (multiple SQL statements) and multi-step transactions
    - If multi-step transactions were requested (Phase 1b), also generate multi-step procedure classes using the pattern from [rules/ddl-multi-step-transactions.md](rules/ddl-multi-step-transactions.md)
