@@ -14,7 +14,7 @@ Required infrastructure:
 - **Docker** — installed and running (checked silently in Step 1; user prompted only if not running)
 - **Java 17+** — not checked upfront; missing/wrong version fails clearly at build time
 - **Maven 3.6+** — not checked upfront; missing Maven fails clearly at build time
-- **VoltDB Enterprise license** — file path confirmed by the user in Step 2
+- **VoltDB license** — file path confirmed by the user in Step 2 (Developer Edition free license or Enterprise license)
 
 ## Project Directory Structure
 
@@ -464,7 +464,7 @@ public class [AppName]App {
 | Item | Value |
 |------|-------|
 | VoltDBCluster import | `org.voltdbtest.testcontainer.VoltDBCluster` |
-| Docker image | `voltdb/voltdb-enterprise:` + version |
+| Docker image | `voltactivedata/volt-developer-edition:` + version (default) or `voltdb/voltdb-enterprise:` + version |
 | DDL location | `src/main/resources/ddl.sql` (classpath resource) |
 | remove_db.sql | `src/main/resources/remove_db.sql` (classpath resource) |
 | Procedure dependency | `volt-procedure-api` (NOT `voltdb`) — only if Java class procedures exist |
@@ -479,7 +479,9 @@ docker info
 
 # 2. SET UP VOLTDB LICENSE (if not already done)
 export VOLTDB_LICENSE=/path/to/voltdb-license.xml
-# OR: cp /path/to/voltdb-license.xml /tmp/voltdb-license.xml
+# OR: cp /path/to/voltdb-license.xml ~/voltdb-license.xml
+# Developer Edition: free license from VoltDB
+# Enterprise Edition: requires commercial license
 
 # 3. NAVIGATE TO PROJECT DIRECTORY
 cd <project-name>
@@ -491,7 +493,7 @@ mvn clean package -DskipTests
 mvn verify
 
 # EXPECTED OUTPUT ON SUCCESS:
-# - Docker pulls voltdb/voltdb-enterprise image (first run only)
+# - Docker pulls Developer Edition image (first run only)
 # - VoltDB container starts
 # - JAR with stored procedures is loaded (only if Java class procedures exist)
 # - DDL schema is applied from classpath (includes DDL-defined procedures)
@@ -502,7 +504,7 @@ mvn verify
 
 # TROUBLESHOOTING:
 # "Cannot connect to Docker daemon" -> Start Docker: open -a Docker (macOS)
-# "License file not found" -> Check VOLTDB_LICENSE env var or /tmp/voltdb-license.xml
+# "License file not found" -> Check VOLTDB_LICENSE env var or ~/voltdb-license.xml
 # "DDL resource not found" -> Ensure ddl.sql is in src/main/resources/
 # "Connection refused" -> Wait for Docker to fully start, then retry
 ```
