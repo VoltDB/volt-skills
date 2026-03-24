@@ -86,9 +86,18 @@ public class IntegrationTestBase {
         );
     }
 
+    /**
+     * Start the testcontainer, load Java procedure classes (if any), and apply DDL.
+     *
+     * When all procedures are DDL-defined: remove the loadClasses block,
+     * the getProjectJar() method, and the project.jar.path property from test.properties.
+     */
     public void startAndConfigureTestContainer(VoltDBCluster db) {
         try {
             db.start();
+
+            // --- loadClasses block: INCLUDE only if Java class procedures exist ---
+            // --- OMIT this block when all procedures are DDL-defined ---
             File jar = getProjectJar();
             if (jar != null) {
                 System.out.println("Loading classes from: " + jar);
@@ -96,6 +105,7 @@ public class IntegrationTestBase {
                 assertEquals(ClientResponse.SUCCESS, response.getStatus(),
                     "Load classes must pass");
             }
+            // --- End loadClasses block ---
 
             File schemaFile = extractResourceToTempFile("ddl.sql");
             if (schemaFile != null) {
@@ -174,16 +184,23 @@ public class IntegrationTestBase {
     }
 
     protected String getLicensePath() {
-        String licensePath = "/tmp/voltdb-license.xml";
         String envLicense = System.getenv("VOLTDB_LICENSE");
         if (envLicense != null) {
             File file = Paths.get(envLicense).toAbsolutePath().toFile();
             if (file.exists()) {
-                licensePath = file.getAbsolutePath();
+                System.out.println("License file path is: " + file.getAbsolutePath());
+                return file.getAbsolutePath();
             }
         }
-        System.out.println("License file path is: " + licensePath);
-        return licensePath;
+        String homeLicense = System.getProperty("user.home") + "/voltdb-license.xml";
+        File homeFile = new File(homeLicense);
+        if (homeFile.exists()) {
+            System.out.println("License file path is: " + homeFile.getAbsolutePath());
+            return homeFile.getAbsolutePath();
+        }
+        String defaultPath = "/tmp/voltdb-license.xml";
+        System.out.println("License file path is: " + defaultPath);
+        return defaultPath;
     }
 }
 ```
@@ -198,7 +215,7 @@ public class IntegrationTestBase {
 | Shutdown property | `voltdb.testcontainer.shutdown` = `true` or `false` |
 | Schema loading | `extractResourceToTempFile("ddl.sql")` — loads DDL from classpath |
 | External mode | Delegates to `VoltDBSetup.initSchemaIfNeeded()` |
-| Project JAR | Read from `project.jar.path` in test.properties |
+| Project JAR | Read from `project.jar.path` in test.properties (only if Java class procedures exist) |
 
 ## Important Differences from Old Pattern
 

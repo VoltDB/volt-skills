@@ -315,13 +315,14 @@ voltdb.external.port=21211
 # Set to "false" to keep the container running after tests for debugging
 voltdb.testcontainer.shutdown=true
 
-# Project jar path
+# Project jar path — INCLUDE only if Java class procedures exist.
+# OMIT this line when all procedures are DDL-defined.
 project.jar.path=target/<project-name>-1.0.jar
 ```
 
 **Notes:**
 - `voltdb.image.version` is hardcoded (no Maven filtering)
-- `project.jar.path` must match the `<artifactId>` and `<version>` in pom.xml
+- `project.jar.path` must match the `<artifactId>` and `<version>` in pom.xml — omit when all procedures are DDL-defined
 - Location is `src/test/resources/test.properties` (NOT `src/test/resources/integration/`)
 
 ## Run Instructions
@@ -344,8 +345,8 @@ mvn verify
 # EXPECTED OUTPUT ON SUCCESS:
 # - Docker pulls voltdb/voltdb-enterprise image (first run only)
 # - VoltDB container starts
-# - JAR with stored procedures is loaded
-# - DDL schema is applied from classpath
+# - JAR with stored procedures is loaded (only if Java class procedures exist)
+# - DDL schema is applied from classpath (includes DDL-defined procedures)
 # - CSV data is loaded via CsvDataLoader
 # - All operations verified through app class methods
 # - Container shuts down (unless voltdb.testcontainer.shutdown=false)
