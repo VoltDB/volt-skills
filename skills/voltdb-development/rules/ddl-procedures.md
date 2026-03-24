@@ -58,12 +58,25 @@ PARTITION TABLE [TABLE1]_[TABLE2]_LOOKUP ON COLUMN [PARTITION_COLUMN];
 -- ============================================================
 -- DDL-defined procedures (single SQL statement, no Java class)
 -- ============================================================
+--
+-- PARAMETER N rule: VoltDB routes single-partition procedures using
+-- parameter 0 (the first ?) by default. If the partition column's ?
+-- is NOT at position 0, you MUST add PARAMETER N (0-indexed).
+-- Getting this wrong causes "Mispartitioned tuple" on writes
+-- or silent wrong results on reads.
 
--- Single-partition upsert
-DROP PROCEDURE Upsert[Table] IF EXISTS;
-CREATE PROCEDURE Upsert[Table]
+-- Primary table upsert (partition column IS the first column → no PARAMETER needed)
+DROP PROCEDURE Upsert[PrimaryTable] IF EXISTS;
+CREATE PROCEDURE Upsert[PrimaryTable]
     PARTITION ON TABLE [TABLE] COLUMN [PARTITION_COLUMN]
     AS UPSERT INTO [TABLE] ([PARTITION_COL], [OTHER_COL], ...) VALUES (?, ?, ...);
+
+-- Co-located table upsert (partition column is NOT the first column → PARAMETER N required)
+-- Example: ORDERS has (ORDER_ID, CUSTOMER_ID, ...) — CUSTOMER_ID is ? at position 1
+DROP PROCEDURE Upsert[ColocatedTable] IF EXISTS;
+CREATE PROCEDURE Upsert[ColocatedTable]
+    PARTITION ON TABLE [TABLE] COLUMN [PARTITION_COLUMN] PARAMETER [N]
+    AS UPSERT INTO [TABLE] ([ID_COL], [PARTITION_COL], [OTHER_COL], ...) VALUES (?, ?, ?, ...);
 
 -- Single-partition get by partition key
 DROP PROCEDURE Get[Table] IF EXISTS;
@@ -198,7 +211,25 @@ DDL-defined procedures are referenced by their short name in client code:
 
 This is the same naming convention as Java class procedures — the client code is identical.
 
-**CRITICAL: Parameter order matters for partitioned DDL procedures.** The partition column value must be the first parameter (`?`) in the SQL statement. VoltDB uses parameter position 0 by default for routing. If the partition column is not the first `?`, add `PARAMETER N` to the `CREATE PROCEDURE` statement.
+## DDL Procedure PARAMETER N Verification
+
+**After generating all DDL-defined procedures, verify each single-partition `CREATE PROCEDURE ... AS ...` statement:**
+
+1. Identify the partition column from the `PARTITION ON TABLE ... COLUMN ...` clause
+2. In the SQL statement, find which `?` corresponds to the partition column (0-indexed)
+3. If it's position 0: no `PARAMETER` clause needed (default)
+4. If it's position N > 0: `PARAMETER N` **must** be present — otherwise VoltDB routes on the wrong value
+
+**Common case requiring PARAMETER N:** Co-located/child table upserts where the table's own ID column comes before the partition column. Example:
+```
+UPSERT INTO ORDERS (ORDER_ID, CUSTOMER_ID, ...) VALUES (?, ?, ...)
+                     ^pos 0    ^pos 1 ← partition column
+→ Must add: PARAMETER 1
+```
+
+Failure to add `PARAMETER N` causes:
+- **Writes:** "Mispartitioned tuple" error (hard failure)
+- **Reads:** Returns wrong/incomplete data (silent failure!)
 
 ## Java Class Procedure Templates
 
