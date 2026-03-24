@@ -302,7 +302,10 @@ public class [TestName]IT extends IntegrationTestBase {
 Create `src/test/resources/test.properties`:
 
 ```properties
-voltdb.image.version=14.3.1
+# Docker image: "voltactivedata/volt-developer-edition" (default, free license)
+# or "voltdb/voltdb-enterprise" (requires Enterprise license)
+voltdb.image.name=voltactivedata/volt-developer-edition
+voltdb.image.version=14.1.0_voltdb
 
 # VoltDB test mode: "testcontainer" (default) or "external"
 voltdb.test.mode=testcontainer
@@ -321,7 +324,9 @@ project.jar.path=target/<project-name>-1.0.jar
 ```
 
 **Notes:**
-- `voltdb.image.version` is hardcoded (no Maven filtering)
+- `voltdb.image.name` and `voltdb.image.version` are hardcoded (no Maven filtering)
+- Default image is Developer Edition (free license, no command logging). To use Enterprise Edition, change `voltdb.image.name` to `voltdb/voltdb-enterprise` and `voltdb.image.version` to `14.3.1`
+- **Apple Silicon note:** The Developer Edition image is `amd64` only — it runs under Docker emulation on ARM Macs, which is slower
 - `project.jar.path` must match the `<artifactId>` and `<version>` in pom.xml — omit when all procedures are DDL-defined
 - Location is `src/test/resources/test.properties` (NOT `src/test/resources/integration/`)
 
@@ -343,7 +348,7 @@ mvn clean package -DskipTests
 mvn verify
 
 # EXPECTED OUTPUT ON SUCCESS:
-# - Docker pulls voltdb/voltdb-enterprise image (first run only)
+# - Docker pulls Developer Edition image (first run only)
 # - VoltDB container starts
 # - JAR with stored procedures is loaded (only if Java class procedures exist)
 # - DDL schema is applied from classpath (includes DDL-defined procedures)

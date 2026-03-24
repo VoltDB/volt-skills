@@ -48,24 +48,33 @@ docker info > /dev/null 2>&1 && echo "OK" || echo "FAIL"
 
 Java and Maven are not checked upfront — missing or wrong versions produce clear errors at build time (Step 7).
 
-### Step 2: Ask License Location
+### Step 2: Ask Edition and License Location
 
-VoltDB Enterprise requires a license file. Use `AskUserQuestion` with:
-- **question:** "Where is your VoltDB Enterprise license file?"
+VoltDB requires a license file (Developer Edition uses a free license; Enterprise Edition requires a commercial license). Use `AskUserQuestion` with:
+- **question:** "Which VoltDB edition do you want to use?"
+- **header:** "Edition"
+- **options:**
+  - `Developer Edition` (Recommended) - Free license, no command logging (amd64 image — runs under emulation on Apple Silicon)
+  - `Enterprise Edition` - Requires commercial Enterprise license
+
+Then ask for the license file location using `AskUserQuestion` with:
+- **question:** "Where is your VoltDB license file?"
 - **header:** "License"
 - **options:**
   - `VOLTDB_LICENSE env var` (Recommended) - I have VOLTDB_LICENSE environment variable set
-  - `/tmp/voltdb-license.xml` - License is at the default location
+  - `~/voltdb-license.xml` - License is in my home directory
+  - `/tmp/voltdb-license.xml` - License is at /tmp
   - `Specify path` - I'll provide the path to my license file
 
 After the user responds:
 1. If `VOLTDB_LICENSE env var`: run `echo $VOLTDB_LICENSE` and verify the file exists at that path using `test -f "$VOLTDB_LICENSE"`.
-2. If `/tmp/voltdb-license.xml`: verify the file exists using `test -f /tmp/voltdb-license.xml`.
-3. If `Specify path`: ask the user for the path, then verify the file exists.
+2. If `~/voltdb-license.xml`: verify the file exists using `test -f ~/voltdb-license.xml`.
+3. If `/tmp/voltdb-license.xml`: verify the file exists using `test -f /tmp/voltdb-license.xml`.
+4. If `Specify path`: ask the user for the path, then verify the file exists.
 
 **If the license file is not found at the specified location**, inform the user and ask them to correct the path. Do not proceed until a valid license file is confirmed.
 
-Save the confirmed license path — it will be used when generating `test.properties`.
+Save the confirmed license path and edition choice — they will be used when generating `test.properties`.
 
 ### Step 3: Ask Application Name
 
@@ -154,7 +163,7 @@ If the user wants multi-step procedures, ensure partitioning alignment:
 6. Generate CSV data files in `src/main/resources/data/` (rules/test-data-and-patterns.md)
 7. Read [rules/test-base-class.md](rules/test-base-class.md) → generate `IntegrationTestBase.java`
 8. Read [rules/test-data-and-patterns.md](rules/test-data-and-patterns.md) → generate `[TestName]IT.java`
-9. Generate `test.properties` at `src/test/resources/test.properties` with testcontainer mode, shutdown enabled, and the confirmed license path from Step 2
+9. Generate `test.properties` at `src/test/resources/test.properties` with testcontainer mode, shutdown enabled, the confirmed license path from Step 2, and the correct `voltdb.image.name`/`voltdb.image.version` for the chosen edition (Developer Edition: `voltactivedata/volt-developer-edition` / `14.1.0_voltdb`; Enterprise Edition: `voltdb/voltdb-enterprise` / `14.3.1`)
 10. Read [rules/workflow-readme-template.md](rules/workflow-readme-template.md) → generate project `README.md`
 
 **Auto-derived defaults (no questions asked):**
