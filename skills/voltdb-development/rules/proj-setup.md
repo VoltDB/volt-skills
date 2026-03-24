@@ -65,7 +65,7 @@ Required infrastructure:
         <maven.compiler.target>17</maven.compiler.target>
         <voltdb.version>14.3.1</voltdb.version>
         <volt-procedure-api.version>15.0.0</volt-procedure-api.version>
-        <volt-testcontainer.version>1.7.0</volt-testcontainer.version>
+        <volt-testcontainer.version>1.8.0</volt-testcontainer.version>
     </properties>
 
     <dependencies>

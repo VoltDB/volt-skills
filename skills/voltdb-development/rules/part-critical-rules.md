@@ -84,8 +84,10 @@ INSERT INTO ORDERS (CUSTOMER_ID, ...) VALUES (200, ...);
 
 Tables WITHOUT a PARTITION statement are REPLICATED (copied to all nodes). Accessible from any partition.
 
-- Use for: Reference data, lookup codes, small static tables
+- Use for: Reference data, lookup codes, small static tables that are **read-mostly**
 - Avoid for: Large tables, frequently updated data
+- **Write restriction:** Replicated tables can be READ from any procedure, but can only be WRITTEN from **multi-partition** procedures. A single-partition procedure that writes to a replicated table will fail at DDL load time.
+- **Design check:** A replicated table should be written to rarely (admin operations, bulk loads) — not on every transaction. If the planned operations include frequent writes (e.g., updating stock, incrementing counters, changing status), the table should be **partitioned instead** — it is not truly reference data.
 
 ## Procedure Type Selection
 
@@ -96,6 +98,7 @@ Tables WITHOUT a PARTITION statement are REPLICATED (copied to all nodes). Acces
 | Query via lookup table | Single-partition | Fast |
 | Search without partition key | Multi-partition | Slower |
 | Cross-partition writes | Multi-partition | Slower |
+| **Writes to replicated table** | **Multi-partition (required)** | **Slower** |
 
 ## Procedure Declaration Syntax
 
