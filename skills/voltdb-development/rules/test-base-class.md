@@ -54,7 +54,7 @@ public class IntegrationTestBase {
     }
 
     public String getImageVersion() {
-        return props.getProperty("voltdb.image.version", "14.1.0_voltdb");
+        return props.getProperty("voltdb.image.version", "15.2.0_voltdb");
     }
 
     public String getTestMode() {
@@ -217,7 +217,7 @@ public class IntegrationTestBase {
 | VoltDBCluster import | `org.voltdbtest.testcontainer.VoltDBCluster` |
 | Client API | `db.getClient2()` returns `Client2` |
 | Docker image property | `voltdb.image.name` = `voltactivedata/volt-developer-edition` (default) or `voltdb/voltdb-enterprise` |
-| Image version property | `voltdb.image.version` = `14.1.0_voltdb` (Developer Edition) or `14.3.1` (Enterprise) |
+| Image version property | `voltdb.image.version` = `15.2.0_voltdb` (Developer Edition) or `15.2.0` (Enterprise) |
 | Test mode property | `voltdb.test.mode` = `testcontainer` or `external` |
 | Shutdown property | `voltdb.testcontainer.shutdown` = `true` or `false` |
 | Schema loading | `extractResourceToTempFile("ddl.sql")` — loads DDL from classpath |

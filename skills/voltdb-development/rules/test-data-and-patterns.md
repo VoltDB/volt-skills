@@ -305,7 +305,7 @@ Create `src/test/resources/test.properties`:
 # Docker image: "voltactivedata/volt-developer-edition" (default, free license)
 # or "voltdb/voltdb-enterprise" (requires Enterprise license)
 voltdb.image.name=voltactivedata/volt-developer-edition
-voltdb.image.version=14.1.0_voltdb
+voltdb.image.version=15.2.0_voltdb
 
 # VoltDB test mode: "testcontainer" (default) or "external"
 voltdb.test.mode=testcontainer
@@ -325,7 +325,7 @@ project.jar.path=target/<project-name>-1.0.jar
 
 **Notes:**
 - `voltdb.image.name` and `voltdb.image.version` are hardcoded (no Maven filtering)
-- Default image is Developer Edition (free license, no command logging). To use Enterprise Edition, change `voltdb.image.name` to `voltdb/voltdb-enterprise` and `voltdb.image.version` to `14.3.1`
+- Default image is Developer Edition (free license, no command logging). To use Enterprise Edition, change `voltdb.image.name` to `voltdb/voltdb-enterprise` and `voltdb.image.version` to `15.2.0`
 - **Apple Silicon note:** The Developer Edition image is `amd64` only — it runs under Docker emulation on ARM Macs, which is slower
 - `project.jar.path` must match the `<artifactId>` and `<version>` in pom.xml — omit when all procedures are DDL-defined
 - Location is `src/test/resources/test.properties` (NOT `src/test/resources/integration/`)

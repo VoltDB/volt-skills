@@ -164,7 +164,7 @@ If the user wants multi-step procedures, ensure partitioning alignment:
 6. Generate CSV data files in `src/main/resources/data/` (rules/test-data-and-patterns.md)
 7. Read [rules/test-base-class.md](rules/test-base-class.md) → generate `IntegrationTestBase.java`
 8. Read [rules/test-data-and-patterns.md](rules/test-data-and-patterns.md) → generate `[TestName]IT.java`
-9. Generate `test.properties` at `src/test/resources/test.properties` with testcontainer mode, shutdown enabled, the confirmed license path from Step 2, and the correct `voltdb.image.name`/`voltdb.image.version` for the chosen edition (Developer Edition: `voltactivedata/volt-developer-edition` / `14.1.0_voltdb`; Enterprise Edition: `voltdb/voltdb-enterprise` / `14.3.1`)
+9. Generate `test.properties` at `src/test/resources/test.properties` with testcontainer mode, shutdown enabled, the confirmed license path from Step 2, and the correct `voltdb.image.name`/`voltdb.image.version` for the chosen edition (Developer Edition: `voltactivedata/volt-developer-edition` / `15.2.0_voltdb`; Enterprise Edition: `voltdb/voltdb-enterprise` / `15.2.0`)
 10. Read [rules/workflow-readme-template.md](rules/workflow-readme-template.md) → generate project `README.md`
 
 **Auto-derived defaults (no questions asked):**

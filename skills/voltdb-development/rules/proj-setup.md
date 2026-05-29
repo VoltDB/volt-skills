@@ -63,15 +63,14 @@ Required infrastructure:
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
-        <voltdb.version>14.3.1</voltdb.version>
-        <volt-procedure-api.version>15.0.0</volt-procedure-api.version>
-        <volt-testcontainer.version>1.8.0</volt-testcontainer.version>
+        <voltdb.version>15.2.0</voltdb.version>
+        <volt-procedure-api.version>15.2.0</volt-procedure-api.version>
+        <volt-testcontainer.version>1.12.0</volt-testcontainer.version>
     </properties>
 
     <dependencies>
         <!-- VoltDB Procedure API (for Java class stored procedures) - provided scope since
              procedures run on the VoltDB server, not in the client application.
-             Note: volt-procedure-api uses a different version from voltdbclient.
              OMIT this dependency if all procedures are DDL-defined (no Java class procedures). -->
         <dependency>
             <groupId>org.voltdb</groupId>
