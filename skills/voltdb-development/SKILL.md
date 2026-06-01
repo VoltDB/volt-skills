@@ -19,11 +19,14 @@ Rules are organized in the `rules/` directory. Read only the rule files needed f
 
 | Priority | Category | Impact | Rule Files |
 |----------|----------|--------|------------|
+| 0 | Versions (read before emitting any template) | REQUIRED | [rules/versions.md](rules/versions.md) |
 | 1 | Partitioning Strategy | HIGH | [rules/part-critical-rules.md](rules/part-critical-rules.md), [rules/part-choose-column.md](rules/part-choose-column.md), [rules/part-colocation.md](rules/part-colocation.md), [rules/part-lookup-tables.md](rules/part-lookup-tables.md) |
 | 2 | DDL & Stored Procedures | HIGH | [rules/ddl-procedures.md](rules/ddl-procedures.md), [rules/ddl-multi-step-transactions.md](rules/ddl-multi-step-transactions.md) |
 | 3 | Project Setup | MEDIUM | [rules/proj-setup.md](rules/proj-setup.md) |
 | 4 | Integration Testing | MEDIUM | [rules/test-base-class.md](rules/test-base-class.md), [rules/test-data-and-patterns.md](rules/test-data-and-patterns.md) |
 | 5 | Workflow & Templates | MEDIUM | [rules/workflow-readme-template.md](rules/workflow-readme-template.md) |
+
+**Version placeholders:** Templates in the rule files use `{{VOLTDB_VERSION}}`, `{{VOLTDB_IMAGE_VERSION_DEV}}`, `{{VOLTDB_IMAGE_VERSION_ENT}}`, and `{{VOLT_TESTCONTAINER_VERSION}}`. Always read [rules/versions.md](rules/versions.md) and substitute these with their canonical values before writing any generated file. A `{{...}}` placeholder must never appear in the user's project.
 
 ## Workflow
 
@@ -164,7 +167,7 @@ If the user wants multi-step procedures, ensure partitioning alignment:
 6. Generate CSV data files in `src/main/resources/data/` (rules/test-data-and-patterns.md)
 7. Read [rules/test-base-class.md](rules/test-base-class.md) → generate `IntegrationTestBase.java`
 8. Read [rules/test-data-and-patterns.md](rules/test-data-and-patterns.md) → generate `[TestName]IT.java`
-9. Generate `test.properties` at `src/test/resources/test.properties` with testcontainer mode, shutdown enabled, the confirmed license path from Step 2, and the correct `voltdb.image.name`/`voltdb.image.version` for the chosen edition (Developer Edition: `voltactivedata/volt-developer-edition` / `14.1.0_voltdb`; Enterprise Edition: `voltdb/voltdb-enterprise` / `14.3.1`)
+9. Generate `test.properties` at `src/test/resources/test.properties` with testcontainer mode, shutdown enabled, the confirmed license path from Step 2, and the correct `voltdb.image.name`/`voltdb.image.version` for the chosen edition. **Read [rules/versions.md](rules/versions.md) first** and substitute version placeholders. Edition mapping: Developer Edition → `voltactivedata/volt-developer-edition` / `{{VOLTDB_IMAGE_VERSION_DEV}}`; Enterprise Edition → `voltdb/voltdb-enterprise` / `{{VOLTDB_IMAGE_VERSION_ENT}}`.
 10. Read [rules/workflow-readme-template.md](rules/workflow-readme-template.md) → generate project `README.md`
 
 **Auto-derived defaults (no questions asked):**
