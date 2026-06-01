@@ -1,6 +1,7 @@
 # IntegrationTestBase Template
 
 > **Category:** Integration Testing | **Impact:** MEDIUM
+> **Version placeholders:** The Java template below uses `{{VOLTDB_IMAGE_VERSION_DEV}}` and `{{VOLTDB_IMAGE_VERSION_ENT}}`. Read [versions.md](versions.md) and substitute them before emitting `IntegrationTestBase.java` — placeholders must never appear in the generated project.
 
 ## Context
 
@@ -54,7 +55,7 @@ public class IntegrationTestBase {
     }
 
     public String getImageVersion() {
-        return props.getProperty("voltdb.image.version", "15.2.0_voltdb");
+        return props.getProperty("voltdb.image.version", "{{VOLTDB_IMAGE_VERSION_DEV}}");
     }
 
     public String getTestMode() {
@@ -217,7 +218,7 @@ public class IntegrationTestBase {
 | VoltDBCluster import | `org.voltdbtest.testcontainer.VoltDBCluster` |
 | Client API | `db.getClient2()` returns `Client2` |
 | Docker image property | `voltdb.image.name` = `voltactivedata/volt-developer-edition` (default) or `voltdb/voltdb-enterprise` |
-| Image version property | `voltdb.image.version` = `15.2.0_voltdb` (Developer Edition) or `15.2.0` (Enterprise) |
+| Image version property | `voltdb.image.version` = `{{VOLTDB_IMAGE_VERSION_DEV}}` (Developer Edition) or `{{VOLTDB_IMAGE_VERSION_ENT}}` (Enterprise) — see [versions.md](versions.md) |
 | Test mode property | `voltdb.test.mode` = `testcontainer` or `external` |
 | Shutdown property | `voltdb.testcontainer.shutdown` = `true` or `false` |
 | Schema loading | `extractResourceToTempFile("ddl.sql")` — loads DDL from classpath |

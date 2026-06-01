@@ -1,6 +1,7 @@
 # Maven Project Structure and Setup
 
 > **Category:** Project Setup | **Impact:** MEDIUM
+> **Version placeholders:** The `pom.xml` template below uses `{{VOLTDB_VERSION}}` and `{{VOLT_TESTCONTAINER_VERSION}}`. Read [versions.md](versions.md) and substitute them before emitting `pom.xml` — placeholders must never appear in the generated project.
 
 ## Context
 
@@ -63,9 +64,9 @@ Required infrastructure:
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
-        <voltdb.version>15.2.0</voltdb.version>
-        <volt-procedure-api.version>15.2.0</volt-procedure-api.version>
-        <volt-testcontainer.version>1.12.0</volt-testcontainer.version>
+        <voltdb.version>{{VOLTDB_VERSION}}</voltdb.version>
+        <volt-procedure-api.version>{{VOLTDB_VERSION}}</volt-procedure-api.version>
+        <volt-testcontainer.version>{{VOLT_TESTCONTAINER_VERSION}}</volt-testcontainer.version>
     </properties>
 
     <dependencies>
