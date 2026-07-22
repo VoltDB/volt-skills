@@ -11,6 +11,7 @@ Use this template when adding a new rule file to `rules/`.
 Prefixes map to categories defined in `_sections.md`:
 - `part-` — Partitioning Strategy
 - `ddl-` — DDL & Stored Procedures
+- `ddl-auto-` — Automation & Time-Based Processing (TTL, migration, tasks, directed & compound procedures)
 - `proj-` — Project Setup
 - `test-` — Integration Testing
 - `workflow-` — Workflow & Templates

@@ -11,6 +11,8 @@ DDL and stored procedures are always generated together. Procedures come in two 
 
 **Decision rule:** If a procedure has exactly one SQL statement and no Java logic, define it in DDL. Otherwise, use a Java class.
 
+Two further declaration variants exist beyond partitioned/multi-partition, covered in the Automation & Time-Based Processing rules: **DIRECTED** procedures (run independently on every partition; invoked via scheduled tasks or `callAllPartitionProcedure`, not `callProcedure` — see [ddl-auto-tasks-directed.md](ddl-auto-tasks-directed.md)) and **COMPOUND** procedures (non-transactional orchestration of multiple procedures — see [ddl-auto-compound-procs.md](ddl-auto-compound-procs.md)).
+
 ## DDL Syntax Rules
 
 - **Schema file location:** `src/main/resources/ddl.sql` (classpath resource)
@@ -193,6 +195,7 @@ DROP TABLE KEYVALUE IF EXISTS;
 | Simple Put/Get (KV) | 1 | No | **DDL** |
 | Co-located access | 2+ | No | **Java class** |
 | Multi-step transaction | 2+ | Yes | **Java class** |
+| Per-partition sweep (batch delete, deadline scan) | any | any | **DIRECTED** — see [ddl-auto-tasks-directed.md](ddl-auto-tasks-directed.md) |
 | **Writes to replicated table** | **any** | **any** | **Must be multi-partition** |
 
 **When ALL procedures are DDL-defined** (no co-located access or multi-step transactions):
