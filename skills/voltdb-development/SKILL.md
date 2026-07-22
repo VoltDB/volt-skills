@@ -159,10 +159,10 @@ If the user wants multi-step procedures, ensure partitioning alignment:
 After the transaction analysis, check whether the user's requirements involve time-driven or event-driven behavior. Read [rules/ddl-auto-overview.md](rules/ddl-auto-overview.md) for the feature-selection table, then read only the detail rule(s) that apply:
 
 - Old data that should be removed or archived after a retention period → [rules/ddl-auto-ttl-migrate.md](rules/ddl-auto-ttl-migrate.md)
-- Deadlines/timeouts to detect and act on (abandonment, expiry, SLA breach), or scheduled maintenance → [rules/ddl-auto-tasks-directed.md](rules/ddl-auto-tasks-directed.md)
+- Deadlines/timeouts to detect and act on (inactivity, expiry, SLA breach), or scheduled maintenance → [rules/ddl-auto-tasks-directed.md](rules/ddl-auto-tasks-directed.md)
 - Inbound topic/Kafka processing needing multi-step, cross-partition logic → [rules/ddl-auto-compound-procs.md](rules/ddl-auto-compound-procs.md)
 
-**Guardrail:** If the user proposes TTL + MIGRATE TO TARGET/TOPIC as a way to *generate business events* when a deadline passes (rather than to archive data they are done with), do not generate that design. Explain the anti-pattern from ddl-auto-overview.md and propose the task + directed procedure sweep instead. Confirm the choice with `AskUserQuestion`.
+**Guardrail:** If TTL + MIGRATE TO TARGET/TOPIC is being considered as a way to *generate business events* when a deadline passes (rather than to archive data that is no longer needed), present the trade-off comparison from ddl-auto-overview.md and recommend the task + directed procedure sweep. Confirm the direction with `AskUserQuestion` before generating either design.
 
 If time-based features are added, remember: TTL columns need a usable index (plus a `WHERE NOT MIGRATING` partial index when combined with MIGRATE) **and high cardinality** — `BATCH_SIZE` cannot split rows sharing one timestamp value, so warn on day/hour-granular or bulk-stamped TTL columns (see ddl-auto-ttl-migrate.md). Tasks doing per-partition sweeps need `DIRECTED` procedures with `RUN ON PARTITIONS`, and their batch-delete `ORDER BY` must end in a unique key.
 

@@ -63,55 +63,53 @@ CREATE TASK batchcleanup
 - Java form: `CREATE DIRECTED PROCEDURE FROM CLASS pkg.MyProc;` (no PARTITION ON clause).
 - Index the column the sweep filters on (`last_access` above) — same reasoning as any hot WHERE clause.
 
-### Worked example: deadline detection (the abandoned-cart pattern)
+### Worked example: deadline detection (missed heartbeats)
 
-Requirement shape: rows represent in-progress state (a cart, a pending payment, an open session); if no activity happens within N minutes, the system must *do something* — emit an event, generate an offer, escalate.
+Requirement shape: rows represent in-progress state (a monitored device, an open session, a pending request); if no activity happens within N minutes, the system must *do something* — emit an event, alert, escalate. Here, devices report heartbeats, and a device silent for 5 minutes should produce an offline event on a topic:
 
 ```sql
-CREATE TABLE cart (
-    user_id BIGINT NOT NULL,
-    cart_id BIGINT NOT NULL,
-    status VARCHAR(16) DEFAULT 'ACTIVE' NOT NULL,   -- ACTIVE / ABANDONED / PURCHASED
-    last_updated TIMESTAMP DEFAULT NOW NOT NULL,
-    PRIMARY KEY (user_id)
+CREATE TABLE device_status (
+    device_id BIGINT NOT NULL,
+    status VARCHAR(16) DEFAULT 'ONLINE' NOT NULL,   -- ONLINE / OFFLINE / RETIRED
+    last_heartbeat TIMESTAMP DEFAULT NOW NOT NULL,
+    PRIMARY KEY (device_id)
 );
-PARTITION TABLE cart ON COLUMN user_id;
-CREATE INDEX cart_sweep_idx ON cart (status, last_updated);
+PARTITION TABLE device_status ON COLUMN device_id;
+CREATE INDEX device_sweep_idx ON device_status (status, last_heartbeat);
 
 -- Outbound event stream: rows inserted here flow to the configured topic/target
-CREATE STREAM abandoned_events
-    PARTITION ON COLUMN user_id
-    EXPORT TO TOPIC AbandonedEvents
+CREATE STREAM offline_events
+    PARTITION ON COLUMN device_id
+    EXPORT TO TOPIC DeviceOfflineEvents
 (
-    user_id BIGINT NOT NULL,
-    cart_id BIGINT NOT NULL,
-    abandoned_at TIMESTAMP NOT NULL
+    device_id BIGINT NOT NULL,
+    detected_at TIMESTAMP NOT NULL
 );
 ```
 
 The sweep is a directed procedure so each partition scans only its own rows. Marking + event emission need two statements, so it is a multi-statement (or Java) procedure:
 
 ```sql
-CREATE PROCEDURE SweepAbandonedCarts DIRECTED AS BEGIN
-    INSERT INTO abandoned_events (user_id, cart_id, abandoned_at)
-        SELECT user_id, cart_id, NOW() FROM cart
-        WHERE status = 'ACTIVE' AND last_updated < DATEADD(MINUTE, -5, NOW());
-    UPDATE cart SET status = 'ABANDONED'
-        WHERE status = 'ACTIVE' AND last_updated < DATEADD(MINUTE, -5, NOW());
+CREATE PROCEDURE SweepOfflineDevices DIRECTED AS BEGIN
+    INSERT INTO offline_events (device_id, detected_at)
+        SELECT device_id, NOW() FROM device_status
+        WHERE status = 'ONLINE' AND last_heartbeat < DATEADD(MINUTE, -5, NOW());
+    UPDATE device_status SET status = 'OFFLINE'
+        WHERE status = 'ONLINE' AND last_heartbeat < DATEADD(MINUTE, -5, NOW());
 END;
 
-CREATE TASK abandonment_sweep
+CREATE TASK offline_sweep
     ON SCHEDULE DELAY 10 SECONDS
-    PROCEDURE SweepAbandonedCarts
+    PROCEDURE SweepOfflineDevices
     ON ERROR LOG
     RUN ON PARTITIONS;
 ```
 
 Why this beats TTL/MIGRATE-to-topic for the same requirement:
 
-- The cart row **stays in VoltDB** with its state — the follow-up logic (match an offer, check the profile) can run against it without re-ingesting the event from Kafka.
-- Activity resets are a normal `UPDATE ... SET last_updated = NOW()`; a purchase sets `status = 'PURCHASED'` (or deletes the row). No fighting a deletion timer.
-- Detection and the event emission happen in one transaction per partition — no race where a returning user still generates an "abandoned" event.
+- The device row **stays in VoltDB** with its state — follow-up logic (alerting rules, checking the device profile) can run against it without re-ingesting the event from Kafka.
+- Each heartbeat is a normal `UPDATE ... SET last_heartbeat = NOW()`; decommissioning sets `status = 'RETIRED'` (or deletes the row). No fighting a deletion timer.
+- Detection and the event emission happen in one transaction per partition — a device that reports in just before the sweep never generates a stale offline event.
 - The 5-minute deadline lives in one place (the sweep procedure) and can carry arbitrary business logic, not just a column comparison.
 
 If the per-deadline action is too complex for SQL (per-row branching, calling other procedures), the sweep can instead SELECT the expired rows and the follow-up logic can live in a Java directed procedure — or the task can invoke a compound procedure via a client-visible flow (see [ddl-auto-compound-procs.md](ddl-auto-compound-procs.md)).
@@ -138,4 +136,4 @@ Tasks fire on real time, so integration tests should use short schedules (e.g., 
 
 - *Using VoltDB*: "Simplifying Application Development" (tasks, directed procedures); CREATE TASK, CREATE PROCEDURE AS / FROM CLASS reference pages
 - *VoltDB Guide to Performance and Customization*: "Creating Custom Tasks"
-- [ddl-auto-overview.md](ddl-auto-overview.md) — feature-selection table and the TTL-as-event-generator anti-pattern
+- [ddl-auto-overview.md](ddl-auto-overview.md) — feature-selection table and the TTL/MIGRATE vs. task-sweep trade-off comparison
