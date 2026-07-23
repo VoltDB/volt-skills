@@ -1,8 +1,8 @@
 ---
 name: voltdb-development
-description: Creates complete VoltDB client applications with optimized table partitioning, DDL schemas, stored procedures, and integration tests. Use when user wants to create a VoltDB client, connect to VoltDB, create VoltDB schemas, write VoltDB stored procedures, or write VoltDB integration tests.
+description: Creates complete VoltDB client applications with optimized table partitioning, DDL schemas, stored procedures, and integration tests. Covers time-based and event-driven features - TTL expiration, data migration/archiving, scheduled tasks, directed procedures, export streams, and compound procedures. Use when user wants to create a VoltDB client, connect to VoltDB, create VoltDB schemas, write VoltDB stored procedures, write VoltDB integration tests, or design time-driven processing (retention, deadline detection, periodic sweeps, event generation) in VoltDB.
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
   organization: VoltDB
   references:
     - https://docs.voltactivedata.com/
@@ -22,6 +22,7 @@ Rules are organized in the `rules/` directory. Read only the rule files needed f
 | 0 | Versions (read before emitting any template) | REQUIRED | [rules/versions.md](rules/versions.md) |
 | 1 | Partitioning Strategy | HIGH | [rules/part-critical-rules.md](rules/part-critical-rules.md), [rules/part-choose-column.md](rules/part-choose-column.md), [rules/part-colocation.md](rules/part-colocation.md), [rules/part-lookup-tables.md](rules/part-lookup-tables.md) |
 | 2 | DDL & Stored Procedures | HIGH | [rules/ddl-procedures.md](rules/ddl-procedures.md), [rules/ddl-multi-step-transactions.md](rules/ddl-multi-step-transactions.md) |
+| 2b | Automation & Time-Based Processing | HIGH | [rules/ddl-auto-overview.md](rules/ddl-auto-overview.md), [rules/ddl-auto-ttl-migrate.md](rules/ddl-auto-ttl-migrate.md), [rules/ddl-auto-tasks-directed.md](rules/ddl-auto-tasks-directed.md), [rules/ddl-auto-compound-procs.md](rules/ddl-auto-compound-procs.md) |
 | 3 | Project Setup | MEDIUM | [rules/proj-setup.md](rules/proj-setup.md) |
 | 4 | Integration Testing | MEDIUM | [rules/test-base-class.md](rules/test-base-class.md), [rules/test-data-and-patterns.md](rules/test-data-and-patterns.md) |
 | 5 | Workflow & Templates | MEDIUM | [rules/workflow-readme-template.md](rules/workflow-readme-template.md) |
@@ -153,6 +154,18 @@ If the user wants multi-step procedures, ensure partitioning alignment:
 - Replicated tables can be read but not written from single-partition procedures
 - **Guardrail:** For each proposed multi-step procedure, check every write statement (INSERT/UPDATE/UPSERT/DELETE). If any write targets a replicated table, first reconsider whether that table should be partitioned instead (see Phase 1 step 5). If it must stay replicated, the procedure must be declared as multi-partition.
 
+**Phase 1c — Automation & Time-Based Processing Analysis** (skip for Key-Value or simple CRUD):
+
+After the transaction analysis, check whether the user's requirements involve time-driven or event-driven behavior. Read [rules/ddl-auto-overview.md](rules/ddl-auto-overview.md) for the feature-selection table, then read only the detail rule(s) that apply:
+
+- Old data that should be removed or archived after a retention period → [rules/ddl-auto-ttl-migrate.md](rules/ddl-auto-ttl-migrate.md)
+- Deadlines/timeouts to detect and act on (inactivity, expiry, SLA breach), or scheduled maintenance → [rules/ddl-auto-tasks-directed.md](rules/ddl-auto-tasks-directed.md)
+- Inbound topic/Kafka processing needing multi-step, cross-partition logic → [rules/ddl-auto-compound-procs.md](rules/ddl-auto-compound-procs.md)
+
+**Guardrail:** If TTL + MIGRATE TO TARGET/TOPIC is being considered as a way to *generate business events* when a deadline passes (rather than to archive data that is no longer needed), present the trade-off comparison from ddl-auto-overview.md and recommend the task + directed procedure sweep. Confirm the direction with `AskUserQuestion` before generating either design.
+
+If time-based features are added, remember: TTL columns need a usable index (plus a `WHERE NOT MIGRATING` partial index when combined with MIGRATE) **and high cardinality** — `BATCH_SIZE` cannot split rows sharing one timestamp value, so warn on day/hour-granular or bulk-stamped TTL columns (see ddl-auto-ttl-migrate.md). Tasks doing per-partition sweeps need `DIRECTED` procedures with `RUN ON PARTITIONS`, and their batch-delete `ORDER BY` must end in a unique key.
+
 **Phase 2 — Code Generation:**
 1. Read [rules/proj-setup.md](rules/proj-setup.md) → create Maven project structure + `pom.xml`
 2. Read [rules/ddl-procedures.md](rules/ddl-procedures.md) → generate:
@@ -161,6 +174,7 @@ If the user wants multi-step procedures, ensure partitioning alignment:
    - `src/main/resources/remove_db.sql` (DROP in dependency order)
    - Java class procedures under `src/main/java/[package]/procedures/` — **only** for co-located access (multiple SQL statements) and multi-step transactions
    - If multi-step transactions were requested (Phase 1b), also generate multi-step procedure classes using the pattern from [rules/ddl-multi-step-transactions.md](rules/ddl-multi-step-transactions.md)
+   - If automation features were chosen (Phase 1c), include them in `ddl.sql` using the templates from the `ddl-auto-*` rules: `USING TTL` clauses **with their required indexes**, `CREATE STREAM ... EXPORT TO TOPIC/TARGET`, `DIRECTED` procedures, and `CREATE TASK` statements (tasks last — they reference procedures). Add matching `DROP TASK IF EXISTS` / `DROP STREAM IF EXISTS` entries to `remove_db.sql`, dropping tasks before the procedures they reference.
 3. Generate `[AppName]App.java` — main client app (rules/proj-setup.md template)
 4. Generate `VoltDBSetup.java` — schema deployment (rules/proj-setup.md template)
 5. Generate `CsvDataLoader.java` — CSV loading utility (rules/test-data-and-patterns.md template)
