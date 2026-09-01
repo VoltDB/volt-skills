@@ -87,17 +87,20 @@ Learned step by step; every step guards a real failure mode.
    complete. A lingering finalizer deleted a freshly-installed CR minutes after
    `helm install` reported success (release "deployed", zero resources).
 3. **On the survivor**: `voltadmin dr reset --cluster <deadId> --force` to forget the dead
-   instance's identity. Note: a command-log recover resurrects pre-reset DR state — reset
-   again after any recover.
-4. **If the survivor's replication port is closed** (producer stops after peer loss /
-   reset): restart the survivor — `voltadmin shutdown` then **delete the pods** (the
-   operator does not restart an in-band shutdown by itself; pods sit voltboot-'stopped'
-   indefinitely). A cleanly-shut-down cluster recovers its data.
-5. **Leader-election split**: an EMPTY cluster that boots while the survivor's port is
-   closed elects itself mesh leader and both sides deadlock on
-   "This is the leader DR cluster. Waiting for other clusters to join". Bring the empty
-   cluster up (or cycle it once) only AFTER the data-holding survivor is listening — it
-   then joins as the syncing member.
+   instance's identity (`--force` without `--cluster` when only one stale peer exists —
+   the `--cluster` form errors if the id was never fully registered). Note: a command-log
+   recover resurrects pre-reset DR state — reset again after any recover.
+4. **If the survivor's replication port is closed, check for PAUSE first**: a paused
+   cluster (including the resource monitor's RSS auto-pause) closes its DR producer port;
+   `voltadmin resume` re-opens it — no restart needed. Check `CLUSTERSTATE` via
+   `@SystemInformation OVERVIEW`. If the survivor is genuinely wedged, restart it:
+   `voltadmin shutdown` then **delete the pods** (the operator does not restart an
+   in-band shutdown by itself). A cleanly-shut-down cluster recovers its data.
+5. **Leader elections are sticky**: if two clusters both self-elect
+   ("This is the leader DR cluster. Waiting for other clusters to join"), their consumers
+   STOP dialing and the deadlock never resolves on its own. Cycle the EMPTY cluster's pods
+   while the data-holder is up, unpaused and listening — it re-runs the election, joins
+   the data-holder, and syncs (full ~14M-row resync measured at ~1–2 min).
 
 ## 4. Sizing note: the survivor after a DC failover
 
