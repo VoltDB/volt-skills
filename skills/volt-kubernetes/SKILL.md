@@ -47,13 +47,19 @@ If in doubt, always check the helm chart and clarify with a user.
 
 ## Prerequisites
 Before generating deployment scripts, check that:
-- **Helm v4.1.1+** is installed
+- **Helm** is installed — CAUTION: verify the chart version supports your helm major
+  version. voltdb chart 3.13.0 renders empty `image:` fields under helm v4 (installs and
+  even its own uninstall hooks fail with `spec.container.image: null`); it works with
+  helm 3.x. Note that package managers may pull helm 4 in as a helmfile dependency;
+  helmfile accepts `--helm-binary` to pin an older binary.
 - **kubectl v1.34.2+** is installed
 - **Helmfile v1.2.3+** is installed
 - **Terraform v1.5.7+** is installed
 - **Java 17+** is installed
 - **Maven 3.6+** is installed
-- Valid **VoltDB Enterprise license** file is available
+- Valid **VoltDB Enterprise license** file is available. For XDCR the license must carry
+  the **`DR` feature flag** — `Active(N)` alone silently disables the replication
+  listener with no error logged (see `references/volt-xdcr.md` §0)
 
 kubectl must be configured to connect to a cloud provider.
 
@@ -283,6 +289,13 @@ releases:
 - For production, switch to published charts: `chart: voltdb/volt-streams` with `version` specified
 
 See `references/volt-helm-release.md` for detailed helm values configuration.
+
+#### Cross Datacenter Replication (XDCR / Active(N))
+For two or more Volt clusters replicating active-active, see `references/volt-xdcr.md`:
+the complete working configuration (symmetric `dr.connection` sources, DR services,
+schema with `DR TABLE` declarations at cluster init), the license gate, verification
+commands, the failed-cluster replacement runbook, and the known silent failure modes.
+Key rule: the DR network stack arms only at cluster init — fix config, then restart.
 
 #### Optional Observability release
 **Propose to a user whether to include an observability release.**
